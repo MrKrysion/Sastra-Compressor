@@ -68,7 +68,7 @@ If you want to package this script into a standalone `.exe` to share with your t
 pip install pyinstaller
 ```
 ```bash
-pyinstaller --noconsole --onefile --icon=icon.ico --hidden-import plyer.platforms.win.notification --add-binary "ffmpeg.exe;." --add-data "icon.ico;." --add-data "assets;assets" main.py
+pyinstaller --noconsole --onefile --name SastraCompressor --icon=icon.ico --hidden-import plyer.platforms.win.notification --add-binary "ffmpeg.exe;." --add-data "icon.ico;." --add-data "assets;assets" main.py
 ```
 
 > _Note: Bundling `ffmpeg.exe` inside a `--onefile` build will make the resulting `.exe` quite large and may increase the startup time slightly as it extracts the binary to a temp folder._

@@ -38,7 +38,7 @@ try:
     myappid = 'ken.nisaka.sastracompressor.1'
     ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID(myappid)
 except Exception:
-    # Non-Windows platforms (or a missing shell32) simply skip this.
+    # Best-effort only; never block startup if the call is unavailable.
     pass
 
 # --- Theme palette ---
