@@ -1,9 +1,9 @@
 <div align="center">
   <a href="https://www.sastra.dev">
     <picture>
-      <source media="(prefers-color-scheme: dark)" srcset="assets/logo-white.png">
-      <source media="(prefers-color-scheme: light)" srcset="assets/logo-black.png">
-      <img alt="Sastra Logo" src="assets/logo-black.png" width="350">
+      <source media="(prefers-color-scheme: dark)" srcset="https://www.sastra.dev/assets/wordmark-white.png">
+      <source media="(prefers-color-scheme: light)" srcset="https://www.sastra.dev/assets/wordmark-black.png">
+      <img alt="Sastra" src="https://www.sastra.dev/assets/wordmark-black.png" width="350">
     </picture>
   </a>
   <h1>Sastra Compressor</h1>
@@ -11,6 +11,7 @@
   <p>
     <sub>Sastra links:</sub>
     <br/>
+    <a href="https://github.com/MrKrysion/Sastra">Sastra Engine (GitHub)</a> •
     <a href="https://www.sastra.dev">Sastra Website</a> •
     <a href="https://www.sastra.dev/docs">Sastra Documentation</a> •
     <a href="https://www.sastra.dev/extras">Sastra Extras</a>
@@ -21,7 +22,7 @@
 
 **Sastra Compressor** is a desktop utility built to take the headache out of web-asset optimisation.
 
-Because the [Sastra Visual Novel Engine](https://www.sastra.dev) runs in the browser via HTML/JS/CSS, serving massive raw images and uncompressed audio can ruin the player experience with long loading screens. This tool provides a beautiful, user-friendly GUI to bulk-compress your visual novel assets (Images, Audio, and Video) into highly optimised, web-friendly formats using FFmpeg.
+Because the [Sastra Visual Novel Engine](https://github.com/MrKrysion/Sastra) runs in the browser via HTML/JS/CSS, serving massive raw images and uncompressed audio can ruin the player experience with long loading screens. This tool provides a beautiful, user-friendly GUI to bulk-compress your visual novel assets (Images, Audio, and Video) into highly optimised, web-friendly formats using FFmpeg.
 
 ### Key Features
 
