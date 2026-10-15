@@ -340,13 +340,11 @@ class MediaCompressorApp(ctk.CTk):
                 elif p_res == "Max 720p": cmd.extend(["-vf", "scale='min(1280,iw)':-2"])
 
             elif ext in VID_EXTS:
-                # Higher CRF = more compression/lower quality; slower preset = smaller file.
+                # Higher CRF = more compression/lower quality.
                 output_path = os.path.join(save_dir, f"{base_name}_compressed.mp4")
                 crf = "22" if c_vid == "Low" else "26" if c_vid == "Medium" else "30"
-                preset = "slow" if c_vid == "Low" else "slower" if c_vid == "Medium" else "veryslow"
                 cmd.extend([
-                    "-c:v", "libx264", "-preset", preset, "-crf", crf,
-                    "-profile:v", "high", "-level", "4.1", "-pix_fmt", "yuv420p",
+                    "-c:v", "libx264", "-preset", "slow", "-crf", crf, "-pix_fmt", "yuv420p",
                     "-movflags", "+faststart", "-c:a", "aac", "-b:a", a_qual
                 ])
                 if v_res == "Max 1080p": cmd.extend(["-vf", "scale='min(1920,iw)':-2"])
