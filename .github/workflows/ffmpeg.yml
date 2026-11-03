@@ -1,0 +1,56 @@
+# Builds and tests ffmpeg.exe. The app workflow (app.yml) uses it too;
+# the result is cached, so ffmpeg is only rebuilt when ffmpeg/ changes.
+name: ffmpeg
+
+on:
+  push:
+    paths: ["ffmpeg/**", ".github/workflows/ffmpeg.yml"]
+  workflow_dispatch:
+  workflow_call:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Restore a previous build
+        id: cache
+        uses: actions/cache@v4
+        with:
+          path: ffmpeg-out
+          key: ffmpeg-${{ hashFiles('ffmpeg/build.sh', 'ffmpeg/versions.sh') }}
+
+      - name: Install the cross-compiler
+        if: steps.cache.outputs.cache-hit != 'true'
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq mingw-w64 nasm meson ninja-build pkg-config
+
+      - name: Build
+        if: steps.cache.outputs.cache-hit != 'true'
+        run: |
+          ffmpeg/build.sh "$RUNNER_TEMP/ffmpeg-work"
+          mv "$RUNNER_TEMP/ffmpeg-work/out" ffmpeg-out
+
+      - name: Test every accepted format
+        run: |
+          sudo dpkg --add-architecture i386
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq --no-install-recommends wine wine64 ffmpeg
+          ffmpeg/test.sh ffmpeg-out/ffmpeg.exe
+
+      - name: Report the size
+        run: |
+          size=$(stat -c %s ffmpeg-out/ffmpeg.exe)
+          echo "ffmpeg.exe: $(numfmt --to=iec --format=%.1f "$size")B" >> "$GITHUB_STEP_SUMMARY"
+          cat ffmpeg-out/BUILD.txt >> "$GITHUB_STEP_SUMMARY"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ffmpeg-windows
+          path: ffmpeg-out
+          if-no-files-found: error
