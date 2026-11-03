@@ -1,0 +1,141 @@
+/* Sastra Compressor: the Sastra™ palette and the app's layout.
+   Everything else comes from krysion.css. */
+
+/* The brand pink is the same everywhere, text included, in both themes. */
+:root, :root[data-theme="dark"] { --accent: #ff006e; --on-accent: #ffffff; --accent-text: var(--accent); }
+:root:not([data-theme="dark"]) {
+	--card: #faf6fb;
+	--soft: rgba(150, 40, 110, .07);
+	--soft-2: rgba(150, 40, 110, .12);
+	--card-hover: color-mix(in srgb, var(--accent) 8%, var(--card));
+}
+:root[data-theme="dark"] {
+	--page: #14101b;
+	--card: #1b1626;
+	--raised: #1b1626;
+	--line: #2a2336;
+	--line-strong: #372e47;
+	--card-hover: color-mix(in srgb, var(--accent) 10%, var(--card));
+}
+::view-transition-old(root), ::view-transition-new(root) { animation-duration: 250ms; animation-timing-function: ease; }
+
+html, body, #root { height: 100%; }
+/* toasts sit above the action bar */
+:root { --toast-offset: 92px; }
+:root:has(.app-main.no-files) { --toast-offset: 32px; }
+body { overflow: hidden; user-select: none; -webkit-user-select: none; cursor: default; }
+input, textarea, .file-dir, .about p { user-select: text; -webkit-user-select: text; }
+
+.logo-dark { display: none; }
+:root[data-theme="dark"] .logo-light { display: none; }
+:root[data-theme="dark"] .logo-dark { display: block; }
+
+/* ---------- shell: bar, two columns, action bar ---------- */
+.app { height: 100%; display: grid; grid-template-rows: auto minmax(0, 1fr) auto; }
+
+.app-bar { display: flex; align-items: center; gap: 16px; height: 64px; padding: 0 16px 0 24px; }
+.app-name { display: flex; align-items: center; gap: 10px; margin: 0; font-size: 1.5rem; line-height: 1; }
+.app-name > img { height: 28px; width: auto; }
+.app-name > span { font-weight: 400; color: var(--ink-2); letter-spacing: -.01em; transform: translateY(1px); }
+.app-bar-end { margin-left: auto; display: flex; gap: 8px; }
+.menu-item.current, .menu-item.current > i { color: var(--accent-text); }
+.menu-item.current > i { color: var(--accent); }
+
+.app-main { display: grid; grid-template-columns: minmax(0, 1fr) 344px; grid-template-rows: minmax(0, 1fr); gap: 16px; padding: 0 16px; min-height: 0; }
+.app-main.no-files { grid-template-columns: minmax(0, 1fr); padding-bottom: 16px; }
+
+/* ---------- the file list ---------- */
+.list-card { display: flex; flex-direction: column; min-height: 0; padding: 0; overflow: hidden; }
+.list-head { display: flex; align-items: center; flex-wrap: wrap; gap: 12px 16px; padding: 18px 18px 12px 24px; }
+.list-title { display: flex; align-items: baseline; gap: 12px; margin-right: auto; min-width: 0; }
+.list-title > h2 { font-size: 1.2rem; white-space: nowrap; }
+.list-title > .meta { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.list-scroll { flex: 1; min-height: 0; overflow-y: auto; padding: 0 10px 12px; }
+
+.files { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 2px; }
+.file-row { transition: background-color var(--t-fast); }
+@media (hover: hover) { .file-row:hover { background: var(--soft); } }
+.file-row > .file-icon { font-size: 18px; text-align: center; }
+.file-row > .file-main { gap: 3px; }
+/* A name and its details read as one unit: tight lines, not paragraph spacing. */
+.file-row > .file-main > :is(b, small) { line-height: 1.3; }
+.file-row > .file-main > b { font-weight: 700; }
+/* The meta line reads as one sentence: ordinary word spaces, no extra gaps. */
+.file-row > .file-main > small { display: block; min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.file-row > .file-main > small > i { font-size: 11px; margin-right: 3px; }
+.file-row > .file-main > small .arrow { margin: 0 2px; font-size: 10px; color: var(--muted); }
+.file-dir { color: var(--muted); font-weight: 400; }
+.file-row.running > .file-icon { color: var(--accent); }
+.file-row.done .saved { color: var(--ink-2); font-weight: 700; }
+.file-row.done > .file-done { animation: k-pop-in 260ms var(--ease-spring); }
+.file-row > .icon-btn { font-size: 14px; color: var(--muted); }
+@media (hover: hover) { .file-row > .icon-btn:hover { background: var(--soft-2); color: var(--ink); } }
+.file-row > .file-done { width: 28px; font-size: 18px; }
+.err-text { color: var(--danger); }
+.warn-text { color: var(--warning-text); }
+.ok-text { color: var(--success); }
+.err-text, .warn-text, .ok-text { display: inline-flex; align-items: center; gap: 8px; }
+.file-row .err-text, .file-row .warn-text { font-weight: 700; }
+
+/* the empty list is one big drop panel */
+.drop-panel.big { flex: 1; justify-content: center; gap: 12px; margin: 10px; padding: 32px 24px; background: transparent; }
+.drop-panel.big.over { background: var(--accent-12); }
+.drop-panel.big > .drop-icon { font-size: 40px; margin-bottom: 6px; }
+.drop-panel.big > h2 { font-size: 1.3rem; }
+.drop-panel.big > p { max-width: 42ch; color: var(--ink-2); }
+.drop-panel.big > .btn-row { justify-content: center; margin: 8px 0 6px; }
+.drop-panel.big > small { line-height: 1.7; }
+.list-card.over:has(.drop-panel) > .drop-cover { opacity: 0; }
+
+/* ---------- settings: one card per group ---------- */
+.settings { display: flex; flex-direction: column; gap: 12px; min-height: 0; overflow-y: auto; padding-bottom: 2px; }
+.settings > .card { flex: none; display: flex; flex-direction: column; gap: 8px; padding: 18px 20px 20px; }
+.set-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin-bottom: 2px; }
+.set-head > h2 { font-size: 1.05rem; }
+.set-head > h2 > i { width: 1.1em; margin-right: 10px; font-size: 16px; color: var(--accent); text-align: center; }
+.field-label { font-size: .9rem; font-weight: 700; color: var(--ink); margin-top: 2px; }
+.settings .seg.block > button { padding: 0 10px; }
+.hint { font-size: .85rem; line-height: 1.5; color: var(--muted); }
+.hint > b { color: var(--ink-2); }
+.folder-pick {
+	display: flex; align-items: center; gap: 10px; width: 100%; height: var(--ctl); padding: 0 18px 0 16px;
+	border: 0; border-radius: var(--r-pill); background: var(--soft); color: var(--ink);
+	font-family: var(--font); font-size: .95rem; font-weight: 700; text-align: left; cursor: pointer;
+	transition: background-color var(--t-fast), transform var(--t-press);
+}
+.folder-pick > span { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.folder-pick > i { color: var(--accent); font-size: 16px; }
+.folder-pick > small { color: var(--muted); font-size: .85rem; }
+@media (hover: hover) { .folder-pick:hover { background: var(--soft-2); } .folder-pick:hover > small { color: var(--ink); } }
+.folder-pick:active { transform: scale(.98); }
+.folder-pick:disabled { opacity: .45; cursor: not-allowed; }
+
+/* ---------- action bar ---------- */
+.action-bar { display: flex; align-items: center; gap: 24px; min-height: 80px; padding: 12px 16px 16px 24px; }
+.action-status { flex: 1; min-width: 0; display: grid; gap: 8px; }
+/* Mixed sizes sit on one baseline, like words in a sentence. */
+.status-line { display: flex; align-items: baseline; gap: 4px 12px; flex-wrap: wrap; }
+.status-line > :is(.ok-text, .warn-text) { display: inline; }
+.status-line > :is(.ok-text, .warn-text) > i { margin-right: 8px; }
+.status-line > b { font-weight: 700; }
+.action-bar .progress > span { animation: none; transition: width 300ms var(--ease-out); }
+.action-bar > .btn-row { flex: none; }
+
+/* ---------- about: two columns, so it fits the window without scrolling ---------- */
+.about { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 32px; padding-bottom: 4px; }
+.about-main { display: flex; flex-direction: column; gap: 14px; }
+.about-logo { height: 40px; width: auto; align-self: flex-start; }
+.about-name { display: flex; align-items: baseline; gap: 10px; font-size: 1.3rem; font-weight: 400; color: var(--ink-2); margin-top: -6px; }
+.about-name > .meta { font-size: .88rem; }
+.about-main > p { color: var(--ink-2); }
+.about-small > p:last-child { color: var(--ink); }
+.about-small { display: flex; flex-direction: column; gap: 8px; margin-top: auto; padding-top: 8px; font-size: .85rem; line-height: 1.5; color: var(--muted); }
+.about-credits { display: flex; flex-direction: column; gap: 10px; padding: 18px 20px; border-radius: var(--r-card); background: var(--soft); }
+.credits { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: auto 1fr; gap: 6px 16px; align-items: baseline; }
+.credits > li { display: contents; }
+.credits a { font-weight: 700; }
+.credits .meta { font-size: .85rem; }
+@media (hover: hover) { .credits a:hover, .about a:hover { text-decoration: underline; } }
+@media (max-width: 760px) { .about { grid-template-columns: minmax(0, 1fr); } }
+
+@media (max-width: 860px) { .app-main:not(.no-files) { grid-template-columns: minmax(0, 1fr) 300px; } }

@@ -1,0 +1,100 @@
+# Checks every push, and builds the Windows app.
+# Publishing a release on GitHub attaches the installer, a portable zip,
+# and ffmpeg's source code (the GPL asks for it) to that release.
+name: app
+
+on:
+  push:
+  pull_request:
+  release:
+    types: [published]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  ffmpeg:
+    uses: ./.github/workflows/ffmpeg.yml
+
+  check:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: npm }
+      - run: npm ci
+      - name: Type-check and build the interface
+        run: npm run build
+      - name: Install what Tauri and the tests need
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq libwebkit2gtk-4.1-dev libayatana-appindicator3-dev librsvg2-dev libxdo-dev ffmpeg
+          cp "$(command -v ffmpeg)" src-tauri/binaries/ffmpeg-x86_64-unknown-linux-gnu
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with: { workspaces: src-tauri }
+      - name: Rust tests (compressing real images, audio, and video)
+        working-directory: src-tauri
+        run: cargo test
+
+  windows:
+    needs: [ffmpeg, check]
+    runs-on: windows-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: npm }
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with: { workspaces: src-tauri }
+
+      - uses: actions/download-artifact@v4
+        with: { name: ffmpeg-windows, path: ffmpeg-out }
+
+      - name: Put ffmpeg and the licences in place
+        shell: bash
+        run: |
+          cp ffmpeg-out/ffmpeg.exe src-tauri/binaries/ffmpeg-x86_64-pc-windows-msvc.exe
+          mkdir -p src-tauri/licences
+          cp ffmpeg-out/licences/* ffmpeg-out/BUILD.txt src-tauri/licences/
+          cp src/design/fonts/OFL.txt src-tauri/licences/Gabarito-OFL.txt
+          cp THIRD-PARTY-NOTICES.md LICENSE src-tauri/licences/
+
+      - run: npm ci
+
+      - name: Build
+        shell: bash
+        run: npx tauri build --config '{"bundle":{"resources":{"licences/":"licences/"}}}'
+
+      - name: Collect the downloads
+        shell: bash
+        run: |
+          version=$(node -p "require('./package.json').version")
+          mkdir -p upload portable/licences
+          cp src-tauri/target/release/bundle/nsis/*-setup.exe "upload/SastraCompressor-${version}-setup.exe"
+          cp src-tauri/target/release/SastraCompressor.exe portable/
+          cp ffmpeg-out/ffmpeg.exe portable/
+          cp src-tauri/licences/* portable/licences/
+          (cd portable && 7z a -tzip "../upload/SastraCompressor-${version}-portable.zip" . > /dev/null)
+          (cd ffmpeg-out && 7z a -tzip "../upload/ffmpeg-source-code.zip" sources BUILD.txt licences > /dev/null)
+          ls -l upload
+          {
+            echo "### Downloads"
+            for f in upload/*; do echo "- $(basename "$f"): $(( $(stat -c %s "$f") / 1024 / 1024 )) MB"; done
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: SastraCompressor-windows
+          path: upload
+          if-no-files-found: error
+
+      - name: Attach to the release
+        if: github.event_name == 'release'
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release upload "${{ github.event.release.tag_name }}" upload/* --clobber

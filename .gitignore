@@ -1,18 +1,13 @@
-# --- Bundled FFmpeg binary (download separately; see README) ---
-ffmpeg.exe
-
-# --- Python ---
-__pycache__/
-*.py[cod]
-*.egg-info/
-.venv/
-venv/
-env/
-
-# --- PyInstaller build output ---
-build/
+# --- Build output ---
+node_modules/
 dist/
-*.spec
+src-tauri/target/
+src-tauri/gen/
+ffmpeg/work/
+
+# ffmpeg.exe is built by CI (ffmpeg/), never committed
+src-tauri/binaries/*
+!src-tauri/binaries/README.md
 
 # --- OS / editor cruft ---
 .DS_Store

@@ -1,75 +1,85 @@
 <div align="center">
   <a href="https://www.sastra.dev">
     <picture>
-      <source media="(prefers-color-scheme: dark)" srcset="https://www.sastra.dev/assets/wordmark-white.png">
-      <source media="(prefers-color-scheme: light)" srcset="https://www.sastra.dev/assets/wordmark-black.png">
-      <img alt="Sastra" src="https://www.sastra.dev/assets/wordmark-black.png" width="350">
+      <source media="(prefers-color-scheme: dark)" srcset="src/assets/wordmark-white.svg">
+      <source media="(prefers-color-scheme: light)" srcset="src/assets/wordmark-black.svg">
+      <img alt="Sastra™" src="src/assets/wordmark-black.svg" width="350">
     </picture>
   </a>
-  <h1>Sastra Compressor</h1>
-  <p><strong>A media compression utility for use alongside the Sastra Visual Novel Engine.</strong></p>
+  <h1>Sastra™ Compressor</h1>
+  <p><strong>A media compression app for use alongside the Sastra™ visual novel engine.</strong></p>
   <p>
-    <sub>Sastra links:</sub>
+    <sub>Sastra™ links:</sub>
     <br/>
-    <a href="https://github.com/MrKrysion/Sastra">Sastra Engine (GitHub)</a> •
-    <a href="https://www.sastra.dev">Sastra Website</a> •
-    <a href="https://www.sastra.dev/docs">Sastra Documentation</a> •
-    <a href="https://www.sastra.dev/extras">Sastra Extras</a>
+    <a href="https://github.com/MrKrysion/Sastra">Sastra™ Engine (GitHub)</a> •
+    <a href="https://www.sastra.dev">Sastra™ website</a> •
+    <a href="https://www.sastra.dev/docs">Sastra™ documentation</a> •
+    <a href="https://www.sastra.dev/extras">Sastra™ extras</a>
   </p>
 </div>
 
 ## 📦 Overview
 
-**Sastra Compressor** is a desktop utility built to take the headache out of web-asset optimisation.
+**Sastra™ Compressor** takes the headache out of preparing assets for the web.
 
-Because the [Sastra Visual Novel Engine](https://github.com/MrKrysion/Sastra) runs in the browser via HTML/JS/CSS, serving massive raw images and uncompressed audio can ruin the player experience with long loading screens. This tool provides a beautiful, user-friendly GUI to bulk-compress your visual novel assets (Images, Audio, and Video) into highly optimised, web-friendly formats using FFmpeg.
+The [Sastra™ visual novel engine](https://github.com/MrKrysion/Sastra) runs in the browser, so large raw images and uncompressed audio mean long loading screens for players. Drop your images, audio, and video into Sastra™ Compressor and it turns them into small, web-friendly files, ready to go into your project's asset folders.
 
-### Key Features
+### What it does
 
-* **🖼️ Image Compression:** Converts `.jpg`, `.png`, and other formats to highly optimised `.webp` files. Includes optional auto-scaling (Max 1080p or 720p).
-* **🎵 Audio Compression:** Converts audio to `.ogg` (libopus) optimised for Music (96k) or SFX/Voice (64k).
-* **🎥 Video Compression:** Converts videos into web-standard `.mp4` (H.264, yuv420p) with `-movflags +faststart` for instant browser streaming.
-* **📊 Live Progress:** Parses FFmpeg streams in real-time to provide accurate progress bars and ETAs.
+* **🖼️ Images → WebP.** PNG, JPEG, WebP, BMP, TIFF, and GIF (first frame). Transparency is kept, photos are turned upright, and wide images can be shrunk to 1920 or 1280 px.
+* **🎵 Audio → Opus in Ogg.** WAV, FLAC, MP3, OGG, Opus, M4A, AAC, AIFF, and W64, at 96 kbit/s for music or 64 kbit/s for voice and sound effects.
+* **🎥 Video → H.264 MP4.** MP4, MOV, MKV, WebM, and AVI, with `+faststart` so browsers can start playing straight away.
+* **📁 Whole folders.** Drop a folder and everything inside is added, subfolders included.
+* **💾 Three ways to save.** Next to the originals (as `name_compressed`), into another folder with the same names and subfolders, or in place of the originals (which go to the Recycle Bin, after asking first).
+* **📊 Live progress.** Each file shows its progress and how much smaller it became; the taskbar shows overall progress, and a Windows notification tells you when everything is done.
 
-## 🛠️ Prerequisites & Installation
+## ⬇️ Download
 
-If you prefer to run the compressor from the source code rather than using a pre-compiled binary, you will need to set up your environment.
+Get the latest version from [Releases](https://github.com/MrKrysion/Sastra-Compressor/releases): the **setup** file installs it, or the **portable** zip runs from any folder. Windows 10 and 11, 64-bit.
 
-1. **Install Python 3.8+**
+## 🛠️ Working on it
 
-2. **Install Dependencies:**
+Sastra™ Compressor is a [Tauri](https://tauri.app) app: the interface is React (in `src/`), the compressing is Rust (in `src-tauri/`), and audio and video go through a small build of FFmpeg made just for it (in `ffmpeg/`).
 
-   ```bash
-   pip install customtkinter Pillow plyer
-   ```
+### Preview the interface in a browser
 
-3. **Get FFmpeg:** This app requires the `ffmpeg` executable to function. [Download the latest release of FFmpeg](https://www.ffmpeg.org/download.html#build-windows), and place the `ffmpeg.exe` directly into the root directory of this project.
-
-4. **Run the App:**
-
-   ```bash
-   python main.py
-   ```
-
-## 🚀 Usage Guide
-
-1. **Select Assets:** Click **Select File(s)** to pick individual media files, or **Select Folder** to grab everything inside a directory.
-
-2. **Set Output:** Choose where you want the compressed files saved. By default, it saves them alongside the source files.
-
-3. **Tweak Settings:** Adjust compression levels (Low, Medium, High) and resolution limits based on your VN's needs.
-
-4. **Compress:** Hit the Compress button. The app will process your queue and send a desktop notification when all assets are ready to be dropped into your Sastra asset folders!
-
-## 📦 Building from Source (PyInstaller)
-
-If you want to package this script into a standalone `.exe` to share with your team (or distribute), you can use PyInstaller. The code is already configured to unpack bundled assets (the `assets/` logo folder, `icon.ico`, and `ffmpeg.exe`) via `sys._MEIPASS`.
+Needs [Node.js](https://nodejs.org) 22 or later. A stand-in fakes the files and the compressing, so you can work on the design without building anything else.
 
 ```bash
-pip install pyinstaller
+npm install
 ```
 ```bash
-pyinstaller --noconsole --onefile --name SastraCompressor --icon=icon.ico --hidden-import plyer.platforms.win.notification --add-binary "ffmpeg.exe;." --add-data "icon.ico;." --add-data "assets;assets" main.py
+npm run dev
 ```
 
-> _Note: Bundling `ffmpeg.exe` inside a `--onefile` build will make the resulting `.exe` quite large and may increase the startup time slightly as it extracts the binary to a temp folder._
+Then open http://localhost:1420.
+
+### Run the real app on Windows
+
+Also needs [Rust](https://rustup.rs) and the Visual Studio Build Tools with the "Desktop development with C++" workload ([Tauri's guide](https://tauri.app/start/prerequisites/)).
+
+1. Download `ffmpeg.exe`: open the latest run of the **app** workflow under [Actions](https://github.com/MrKrysion/Sastra-Compressor/actions), and download the `ffmpeg-windows` artifact. Or take it from a portable zip.
+2. Save it as `src-tauri/binaries/ffmpeg-x86_64-pc-windows-msvc.exe`.
+3. Run:
+
+```bash
+npm run tauri dev
+```
+
+To make an installer locally, run `npm run tauri build`.
+
+### The design language
+
+The app uses the Krysion design language with the Sastra™ palette. `krysion.css`, `krysion.js`, and the Gabarito font live in `src/design/`, so the app works offline and depends on nothing outside this repository. To update the design language, copy the new versions in by hand; `src/design/README.md` lists the two lines of `krysion.css` that change when they're copied.
+
+The app's own styles are in `src/app.css`. The window uses the standard Windows title bar for now; the header inside the window is `src/components/Header.tsx`.
+
+### Releasing
+
+1. Update `version` in `package.json`, `src-tauri/tauri.conf.json`, and `src-tauri/Cargo.toml`.
+2. Publish a release on GitHub with a new tag (for example `v2.0.1`).
+3. GitHub Actions builds the app and attaches the installer, the portable zip, and FFmpeg's source code to the release.
+
+## 📄 Licence
+
+Sastra™ Compressor is released under the [MIT licence](LICENSE). The bundled FFmpeg is under the GNU GPL; see [third-party notices](THIRD-PARTY-NOTICES.md) and [ffmpeg/README.md](ffmpeg/README.md).
