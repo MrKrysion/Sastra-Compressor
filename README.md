@@ -1,7 +1,10 @@
 <div align="center">
   <a href="https://www.sastra.dev">
-    <img alt="Sastra™" src="src/assets/wordmark-black.svg#gh-light-mode-only" width="350">
-    <img alt="Sastra™" src="src/assets/wordmark-white.svg#gh-dark-mode-only" width="350">
+    <picture>
+      <source media="(prefers-color-scheme: dark)" srcset="src/assets/wordmark-white.svg">
+      <source media="(prefers-color-scheme: light)" srcset="src/assets/wordmark-black.svg">
+      <img alt="Sastra™" src="src/assets/wordmark-black.svg" width="350">
+    </picture>
   </a>
   <h1>Sastra™ Compressor</h1>
   <p><strong>A media compression app for use alongside the Sastra™ visual novel engine.</strong></p>
