@@ -4,7 +4,10 @@
 name: app
 
 on:
+  # Branches only: a new tag would build the same commit again, and the
+  # release event below already builds releases.
   push:
+    branches: ['**']
   pull_request:
   release:
     types: [published]

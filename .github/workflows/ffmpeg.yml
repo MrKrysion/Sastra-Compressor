@@ -4,6 +4,7 @@ name: ffmpeg
 
 on:
   push:
+    branches: ["**"]
     paths: ["ffmpeg/**", ".github/workflows/ffmpeg.yml"]
   workflow_dispatch:
   workflow_call:
