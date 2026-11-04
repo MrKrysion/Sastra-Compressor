@@ -77,11 +77,11 @@ jobs:
         run: |
           version=$(node -p "require('./package.json').version")
           mkdir -p upload portable/licences
-          cp src-tauri/target/release/bundle/nsis/*-setup.exe "upload/SastraCompressor-${version}-setup.exe"
+          cp src-tauri/target/release/bundle/nsis/*-setup.exe "upload/SastraCompressor-setup.exe"
           cp src-tauri/target/release/SastraCompressor.exe portable/
           cp ffmpeg-out/ffmpeg.exe portable/
           cp src-tauri/licences/* portable/licences/
-          (cd portable && 7z a -tzip "../upload/SastraCompressor-${version}-portable.zip" . > /dev/null)
+          (cd portable && 7z a -tzip "../upload/SastraCompressor-portable.zip" . > /dev/null)
           (cd ffmpeg-out && 7z a -tzip "../upload/ffmpeg-source-code.zip" sources BUILD.txt licences > /dev/null)
           ls -l upload
           {
