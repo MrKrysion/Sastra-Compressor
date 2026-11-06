@@ -326,7 +326,6 @@ export default function App() {
             <div className={`drop-panel big${over ? ' over' : ''}`}>
               <i className="fa-solid fa-upload drop-icon" aria-hidden="true" />
               <h2>Drop images, audio, and video here</h2>
-              <p>Whole folders work too: everything inside is added, subfolders included.</p>
               <div className="btn-row">
                 <button type="button" className="btn btn-primary" onClick={pickFiles}>
                   <i className="fa-solid fa-plus" aria-hidden="true" />Add files

@@ -189,6 +189,18 @@ fn animations_stay_animated() {
 }
 
 #[test]
+fn every_listed_image_format_compresses() {
+    let d = temp("formats");
+    for ext in crate::formats::IMAGE {
+        let src = d.join(format!("a.{ext}"));
+        image::RgbImage::from_fn(32, 32, |x, y| image::Rgb([(x * 7) as u8, (y * 7) as u8, 90])).save(&src).unwrap_or_else(|e| panic!("{ext}: {e}"));
+        let out = d.join(format!("a-{ext}.webp"));
+        image_job::compress(&src, &out, 75.0, 0).unwrap_or_else(|e| panic!("{ext}: {e}"));
+        assert_eq!(image::open(&out).unwrap().to_rgb8().dimensions(), (32, 32), "{ext}");
+    }
+}
+
+#[test]
 fn a_still_gif_stays_a_still() {
     let d = temp("still");
     let src = d.join("one.gif");
