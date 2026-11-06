@@ -121,7 +121,11 @@ input, textarea, .file-dir, .about p { user-select: text; -webkit-user-select: t
 .drop-panel.big > h2 { font-size: 1.3rem; }
 .drop-panel.big > p { max-width: 42ch; color: var(--ink-2); }
 .drop-panel.big > .btn-row { justify-content: center; margin: 8px 0 6px; }
-.drop-panel.big > small { line-height: 1.7; }
+.format-groups { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; width: min(100%, 640px); margin: 20px 0 0; padding: 0; list-style: none; text-align: left; }
+.format-group { padding: 14px 16px 16px; border-radius: var(--r-pop); background: var(--soft); }
+.format-group > h3 { display: flex; align-items: center; gap: 8px; margin: 0 0 6px; font-size: .95rem; font-weight: 700; color: var(--ink); }
+.format-group > h3 > i { font-size: 15px; color: var(--accent); }
+.format-group > p { display: flex; flex-wrap: wrap; gap: 2px 10px; margin: 0; font-size: .85rem; line-height: 1.55; color: var(--muted); }
 .list-card.over:has(.drop-panel) > .drop-cover { opacity: 0; }
 
 /* ---------- settings: one card per group ---------- */

@@ -335,11 +335,11 @@ export default function App() {
                 </button>
               </div>
               {formats && (
-                <small>
-                  {list(formats.image.filter((x) => !['jpeg', 'tif'].includes(x)).map(up))} images<br />
-                  {list(formats.audio.filter((x) => !['oga', 'aif'].includes(x)).map(up))} audio<br />
-                  {list(formats.video.filter((x) => x !== 'm4v').map(up))} video
-                </small>
+                <ul className="format-groups" aria-label="Supported formats">
+                  <FormatGroup icon="fa-image" title="Images" formats={formats.image.filter((x) => !['jpeg', 'tif'].includes(x))} />
+                  <FormatGroup icon="fa-music" title="Audio" formats={formats.audio.filter((x) => !['oga', 'aif'].includes(x))} />
+                  <FormatGroup icon="fa-film" title="Video" formats={formats.video.filter((x) => x !== 'm4v')} />
+                </ul>
               )}
             </div>
           ) : (
@@ -541,6 +541,15 @@ export default function App() {
         </Modal>
       )}
     </div>
+  );
+}
+
+function FormatGroup({ icon, title, formats }: { icon: string; title: string; formats: string[] }) {
+  return (
+    <li className="format-group">
+      <h3><i className={`fa-solid ${icon}`} aria-hidden="true" />{title}</h3>
+      <p>{formats.map((f) => <span key={f}>{up(f)}</span>)}</p>
+    </li>
   );
 }
 
