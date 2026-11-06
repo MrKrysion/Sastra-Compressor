@@ -1,12 +1,11 @@
-# Checks and builds the Windows app: for main, for pull requests, and on request
-# for any other branch (Actions > app > Run workflow).
+# Pushes to main and pull requests run the checks. The Windows app is only built
+# for a release, or on request for any branch (Actions > app > Run workflow).
 # Publishing a release on GitHub attaches the installer, a portable zip,
 # and ffmpeg's source code (the GPL asks for it) to that release.
 name: app
 
 on:
-  # Main only, and no tags: a pull request's branch would build twice otherwise,
-  # and the release event below already builds releases.
+  # Main only, and no tags: a pull request's branch would run twice otherwise.
   push:
     branches: [main]
   pull_request:
@@ -18,11 +17,15 @@ permissions:
   contents: read
 
 jobs:
+  # Skipping this also skips the windows job, which needs it. A release is usually
+  # pushed to main first, so building on both would build the same commit twice.
   ffmpeg:
+    if: github.event_name == 'release' || github.event_name == 'workflow_dispatch'
     uses: ./.github/workflows/ffmpeg.yml
 
   check:
     runs-on: ubuntu-24.04
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-node@v7
@@ -45,6 +48,7 @@ jobs:
   windows:
     needs: [ffmpeg, check]
     runs-on: windows-latest
+    timeout-minutes: 45
     permissions:
       contents: write
     steps:

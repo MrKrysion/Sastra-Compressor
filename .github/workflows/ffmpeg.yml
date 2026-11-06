@@ -1,5 +1,5 @@
-# Builds and tests ffmpeg.exe. The app workflow (app.yml) runs this on every
-# build, so it has no push trigger of its own. The result is cached, so ffmpeg
+# Builds and tests ffmpeg.exe. The app workflow (app.yml) runs this whenever it
+# builds the app, so it has no push trigger of its own. The result is cached, so ffmpeg
 # is only rebuilt and retested when its recipe changes.
 name: ffmpeg
 
@@ -13,6 +13,7 @@ permissions:
 jobs:
   build:
     runs-on: ubuntu-24.04
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v7
 
