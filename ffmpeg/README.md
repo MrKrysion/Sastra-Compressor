@@ -15,7 +15,7 @@ GitHub Actions runs both scripts (`.github/workflows/ffmpeg.yml`) as part of the
 | | Accepted |
 |---|---|
 | Video files | MP4, M4V, MOV, MKV, WebM, and AVI |
-| Video codecs | H.264, H.265 (HEVC), AV1, VP9, VP8, ProRes, DNxHD/DNxHR, MPEG-4 Part 2, Motion JPEG, QuickTime Animation, PNG, HuffYUV, Ut Video, FFV1, MPEG-1, MPEG-2, DivX 3, WMV 8, and uncompressed |
+| Video codecs | H.264, H.265 (HEVC), AV1, VP9, VP8, ProRes, DNxHD/DNxHR, MPEG-4 Part 2, Motion JPEG, QuickTime Animation, HuffYUV, Ut Video, FFV1, MPEG-1, MPEG-2, DivX 3, WMV 8, and uncompressed |
 | Audio files | WAV, W64, FLAC, MP3, OGG, OGA, Opus, M4A, AAC, AIFF, and AIF |
 | Audio codecs | PCM (8-, 16-, 24-, and 32-bit, float, A-law, and mu-law), ADPCM, FLAC, MP3, MP2, AAC, ALAC, Vorbis, Opus, AC-3, E-AC-3, and DTS |
 

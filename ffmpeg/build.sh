@@ -87,11 +87,11 @@ unpack ffmpeg.tar.xz ffmpeg
 # Inputs we accept, and only the parts of ffmpeg needed to read them.
 # Keep this list in step with src-tauri/src/formats.rs in the app.
 DEMUXERS=mov,matroska,avi,mp3,wav,w64,flac,ogg,aac,aiff
-# Besides everyday codecs: what editors export (QuickTime Animation, PNG, HuffYUV,
+# Besides everyday codecs: what editors export (QuickTime Animation, HuffYUV,
 # Ut Video, FFV1), and older video and sound, since one unreadable track fails a whole video.
-VIDEO_DECODERS=h264,hevc,prores,dnxhd,mpeg4,mjpeg,vp8,vp9,libdav1d,rawvideo,qtrle,png,huffyuv,ffvhuff,utvideo,ffv1,mpeg2video,mpeg1video,msmpeg4v3,wmv2
+VIDEO_DECODERS=h264,hevc,prores,dnxhd,mpeg4,mjpeg,vp8,vp9,libdav1d,rawvideo,qtrle,huffyuv,ffvhuff,utvideo,ffv1,mpeg2video,mpeg1video,msmpeg4v3,wmv2
 AUDIO_DECODERS=aac,mp3float,flac,vorbis,opus,alac,ac3,eac3,pcm_s16le,pcm_s24le,pcm_s32le,pcm_f32le,pcm_f64le,pcm_s16be,pcm_s24be,pcm_s32be,pcm_u8,pcm_s8,pcm_alaw,pcm_mulaw,adpcm_ms,adpcm_ima_wav,mp2float,dca
-PARSERS=h264,hevc,mpeg4video,mjpeg,dnxhd,vp8,vp9,av1,aac,mpegaudio,flac,vorbis,opus,ac3,png,mpegvideo,dca
+PARSERS=h264,hevc,mpeg4video,mjpeg,dnxhd,vp8,vp9,av1,aac,mpegaudio,flac,vorbis,opus,ac3,mpegvideo,dca
 # What we write: H.264 + AAC in MP4, Opus in Ogg; "null" is used to read durations.
 ENCODERS=libx264,aac,libopus
 MUXERS=mp4,ogg,null

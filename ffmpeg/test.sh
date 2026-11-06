@@ -37,7 +37,6 @@ gen "${V[@]}" "${A[@]}" -c:v mjpeg -c:a pcm_s16le -shortest mjpeg-pcm.avi
 gen "${V[@]}" -c:v rawvideo -pix_fmt bgr24 raw-silent.avi
 gen "${V[@]}" "${A[@]}" -c:v libx264 -c:a eac3 -shortest h264-eac3.mkv
 gen "${V[@]}" "${A[@]}" -c:v qtrle -c:a pcm_s16le -shortest qtrle.mov
-gen "${V[@]}" "${A[@]}" -c:v png -c:a pcm_s16le -shortest png.mov
 gen "${V[@]}" "${A[@]}" -c:v huffyuv -c:a pcm_s16le -shortest huffyuv.avi
 gen "${V[@]}" "${A[@]}" -c:v ffvhuff -c:a pcm_s16le -shortest ffvhuff.avi
 gen "${V[@]}" "${A[@]}" -c:v utvideo -pix_fmt yuv422p -c:a pcm_s16le -shortest utvideo.avi
