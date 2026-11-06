@@ -10,8 +10,10 @@ import './design/krysion.js';
 import { applyTheme, savedTheme } from './lib/theme';
 import { backend } from './lib/backend';
 import App from './App';
+import { behaveLikeAnApp } from './lib/app-behaviour';
 
 applyTheme(savedTheme());
+behaveLikeAnApp();
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>

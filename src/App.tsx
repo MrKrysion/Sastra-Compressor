@@ -313,12 +313,14 @@ export default function App() {
   const firstOut = rows.map((r) => r.status).find((s): s is Extract<Row['status'], { state: 'done' }> => s.state === 'done');
   const kindsAdded = (Object.keys(counts) as Kind[]).filter((k) => counts[k]).map((k) => NAMES[k]);
   const clear = () => { setRows([]); setPhase('idle'); };
+  // While a dialog is open, Tab and clicks stay inside it; the window controls still work.
+  const dialogOpen = about || !!confirm || !!found;
 
   return (
     <div className="app">
-      <Header onAbout={() => setAbout(true)} />
+      <Header onAbout={() => setAbout(true)} inert={dialogOpen} />
 
-      <main className={`app-main${rows.length ? '' : ' no-files'}`}>
+      <main className={`app-main${rows.length ? '' : ' no-files'}`} inert={dialogOpen}>
         <section className={`list-card card drop-target${over ? ' over' : ''}`} aria-label="Files">
           {rows.length === 0 ? (
             <div className={`drop-panel big${over ? ' over' : ''}`}>
@@ -383,7 +385,7 @@ export default function App() {
       </main>
 
       {rows.length > 0 && (
-      <footer className="action-bar">
+      <footer className="action-bar" inert={dialogOpen}>
         <div className="action-status" aria-live="polite">
           {phase === 'running' ? (
             <>

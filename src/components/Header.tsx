@@ -1,5 +1,6 @@
 import { useRef, useState } from 'react';
 import { Menu, useMenu } from './Menu';
+import { TitleBar } from './TitleBar';
 import { applyTheme, savedTheme, type ThemeChoice } from '../lib/theme';
 import black from '../assets/wordmark-black.svg';
 import white from '../assets/wordmark-white.svg';
@@ -10,7 +11,8 @@ const THEMES: { value: ThemeChoice; label: string; icon: string }[] = [
   { value: 'dark', label: 'Dark', icon: 'fa-moon' },
 ];
 
-export function Header({ onAbout }: { onAbout(): void }) {
+/** This app's contents for the title bar. */
+export function Header({ onAbout, inert }: { onAbout(): void; inert: boolean }) {
   const [theme, setTheme] = useState(savedTheme());
   const menu = useMenu();
   const btn = useRef<HTMLButtonElement>(null);
@@ -23,13 +25,16 @@ export function Header({ onAbout }: { onAbout(): void }) {
   };
 
   return (
-    <header className="app-bar">
-      <h1 className="app-name">
-        <img className="logo-light" src={black} alt="Sastra™" />
-        <img className="logo-dark" src={white} alt="" aria-hidden="true" />
-        <span>Compressor</span>
-      </h1>
-      <div className="app-bar-end">
+    <TitleBar
+      inert={inert}
+      start={
+        <h1 className="app-name">
+          <img className="logo-light" src={black} alt="Sastra™" draggable={false} />
+          <img className="logo-dark" src={white} alt="" aria-hidden="true" draggable={false} />
+          <span>Compressor</span>
+        </h1>
+      }
+      end={<>
         <button type="button" className="icon-btn icon-btn-sm" aria-label="About" data-tip="About" onClick={onAbout}>
           <i className="fa-solid fa-circle-info" aria-hidden="true" />
         </button>
@@ -60,7 +65,7 @@ export function Header({ onAbout }: { onAbout(): void }) {
             </button>
           ))}
         </Menu>
-      </div>
-    </header>
+      </>}
+    />
   );
 }

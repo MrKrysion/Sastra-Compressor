@@ -33,11 +33,41 @@ input, textarea, .file-dir, .about p { user-select: text; -webkit-user-select: t
 /* ---------- shell: bar, two columns, action bar ---------- */
 .app { height: 100%; display: grid; grid-template-rows: auto minmax(0, 1fr) auto; }
 
-.app-bar { display: flex; align-items: center; gap: 16px; height: 64px; padding: 0 16px 0 24px; }
-.app-name { display: flex; align-items: center; gap: 10px; margin: 0; font-size: 1.5rem; line-height: 1; }
-.app-name > img { height: 28px; width: auto; }
+/* ---------- the title bar ---------- */
+:root { --titlebar: 56px; }
+.titlebar { position: relative; display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); align-items: center; height: var(--titlebar); padding-left: 24px; }
+.tb-start { display: flex; align-items: center; min-width: 0; }
+.tb-center { display: flex; align-items: baseline; gap: 10px; }
+.tb-end { grid-column: 3; display: flex; align-items: center; justify-content: flex-end; gap: 12px; height: 100%; }
+.tb-app { display: flex; gap: 8px; }
+.tb-window { display: flex; height: 100%; }
+/* The target fills the bar's height and reaches the corner; the chip is what shows. */
+.tb-btn { position: relative; width: 46px; height: 100%; padding: 0; border: 0; background: none; color: var(--ink); cursor: default; display: grid; place-items: center; transition: color var(--t-fast); }
+.tb-btn::before { content: ""; position: absolute; inset: 8px 1px; border-radius: 12px; transition: background-color var(--t-fast); }
+.tb-close { width: 53px; }
+.tb-close::before { right: 8px; }
+.tb-btn > svg { position: relative; width: 14px; height: 14px; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
+.tb-btn.hover::before { background: var(--soft-2); }
+.tb-btn.pressed::before { background: color-mix(in srgb, var(--ink) 18%, transparent); }
+@media (hover: hover) { .tb-btn:hover::before { background: var(--soft-2); } }
+.tb-btn:active::before { background: color-mix(in srgb, var(--ink) 18%, transparent); }
+@media (hover: hover) { .tb-close:hover { color: var(--on-danger); } .tb-close:hover::before { background: var(--danger); } }
+.tb-close:active { color: var(--on-danger); }
+.tb-close:active::before { background: color-mix(in srgb, var(--danger) 82%, #000); }
+.tb-btn:focus-visible { outline: none; }
+.tb-btn:focus-visible::before { outline: 2px solid var(--accent); outline-offset: -2px; }
+.titlebar.inactive .tb-btn:not(:hover) { color: var(--muted); }
+@media (forced-colors: active) {
+	.tb-btn { color: ButtonText; }
+	.tb-btn:hover::before, .tb-btn.hover::before { background: Highlight; forced-color-adjust: none; }
+	.tb-btn:hover, .tb-btn.hover { color: HighlightText; forced-color-adjust: none; }
+}
+/* A dialog dims everything below the bar, so the window can still be moved and closed. */
+.modal-backdrop { top: var(--titlebar); }
+
+.app-name { display: flex; align-items: center; gap: 8px; margin: 0; font-size: 1.25rem; line-height: 1; }
+.app-name > img { height: 24px; width: auto; }
 .app-name > span { font-weight: 400; color: var(--ink-2); letter-spacing: -.01em; transform: translateY(1px); }
-.app-bar-end { margin-left: auto; display: flex; gap: 8px; }
 .menu-item.current, .menu-item.current > i { color: var(--accent-text); }
 .menu-item.current > i { color: var(--accent); }
 
@@ -90,15 +120,16 @@ input, textarea, .file-dir, .about p { user-select: text; -webkit-user-select: t
 .list-card.over:has(.drop-panel) > .drop-cover { opacity: 0; }
 
 /* ---------- settings: one card per group ---------- */
-.settings { display: flex; flex-direction: column; gap: 12px; min-height: 0; overflow-y: auto; padding-bottom: 1px; }
+/* The scrollbar's space is always kept, out in the window's margin, so the cards don't change width when it appears. */
+.settings { display: flex; flex-direction: column; gap: 12px; min-height: 0; overflow-y: auto; padding-bottom: 1px; scrollbar-gutter: stable; margin-right: -10px; }
 .settings > .card { flex: none; display: flex; flex-direction: column; gap: 8px; padding: 18px 20px 20px; }
 .set-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin-bottom: 2px; }
 .set-head > h2 { font-size: 1.05rem; }
 .set-head > h2 > i { width: 1.1em; margin-right: 10px; font-size: 16px; color: var(--accent); text-align: center; }
 .field-label { font-size: .9rem; font-weight: 700; color: var(--ink); margin-top: 2px; }
 .settings .seg.block > button { padding: 0 10px; }
-/* The design language's accordion, on the panel's cards instead of its soft blocks, and one open at a time. */
-.settings > .set-acc { display: block; padding: 0; gap: 0; }
+/* The shared accordion, on the panel's cards instead of soft blocks, and at most one open at a time. */
+.settings > .set-acc { display: block; padding: 0; gap: 0; background: var(--card); }
 .set-acc > .acc-q { min-height: 52px; padding: 12px 20px; }
 .set-acc > .acc-q > h2 { flex: none; font-size: 1.05rem; }
 .set-acc > .acc-q > h2 > i { width: 1.1em; margin-right: 10px; font-size: 16px; color: var(--accent); text-align: center; }

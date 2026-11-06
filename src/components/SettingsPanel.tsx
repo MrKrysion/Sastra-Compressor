@@ -48,15 +48,15 @@ interface Props {
 
 /**
  * "Save to" is always open. Below it, one collapsible row per kind of file in the list
- * (the design language's accordion), one open at a time so the panel doesn't need to
- * scroll. A closed row still shows its choices, so nothing is hidden.
+ * at most one open at a time so the panel rarely needs
+ * to scroll. A closed row still shows its choices, so nothing is hidden.
  */
 export function SettingsPanel({ settings: s, counts, busy, noBin, onChange, onPickFolder }: Props) {
   const set = (patch: Partial<Settings>) => onChange({ ...s, ...patch });
   const present = KINDS.filter((k) => counts[k] > 0);
-  const [chosen, setChosen] = useState<Kind | null>(null);
-  // The row last opened; if its files have left the list, the first that's still there.
-  const open = chosen && present.includes(chosen) ? chosen : present[0];
+  const [chosen, setChosen] = useState<Kind | 'none' | null>(null);
+  // The row last opened, or none if it was closed; if its files have left the list, the first that's still there.
+  const open = chosen === 'none' ? null : chosen && present.includes(chosen) ? chosen : present[0];
   const folderName = s.outputFolder?.split(/[\\/]/).filter(Boolean).pop() ?? '';
 
   const group = (kind: Kind, title: string, icon: string, fields: ReactNode) => {
@@ -77,7 +77,7 @@ export function SettingsPanel({ settings: s, counts, busy, noBin, onChange, onPi
     }
     return (
       <section className={`card acc-item set-acc${isOpen ? ' open' : ''}`}>
-        <button type="button" className="acc-q" aria-expanded={isOpen} onClick={() => setChosen(kind)}>
+        <button type="button" className="acc-q" aria-expanded={isOpen} onClick={() => setChosen(isOpen ? 'none' : kind)}>
           <h2>{label}</h2>
           <small className="meta">{isOpen ? plural(counts[kind], 'file') : summary(kind, s)}</small>
           <i className="fa-solid fa-chevron-down" aria-hidden="true" />

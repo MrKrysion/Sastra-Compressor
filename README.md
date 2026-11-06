@@ -72,7 +72,7 @@ To make an installer locally, run `npm run tauri build`.
 
 The app uses the Krysion design language with the Sastra™ palette. `krysion.css`, `krysion.js`, and the Gabarito font live in `src/design/`, so the app works offline and depends on nothing outside this repository. To update the design language, copy the new versions in by hand; `src/design/README.md` lists the two lines of `krysion.css` that change when they're copied.
 
-The app's own styles are in `src/app.css`. The window uses the standard Windows title bar for now; the header inside the window is `src/components/Header.tsx`.
+The app's own styles are in `src/app.css`. The title bar is `src/components/TitleBar.tsx`, with its native side in `src-tauri/src/frame.rs`. `Header.tsx` fills it for this app.
 
 ### Releasing
 

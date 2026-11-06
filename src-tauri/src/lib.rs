@@ -1,4 +1,6 @@
 mod ffmpeg;
+#[cfg(windows)]
+mod frame;
 mod formats;
 mod image_job;
 mod runner;
@@ -99,6 +101,37 @@ fn quit(app: AppHandle, run: State<Run>) {
     });
 }
 
+/// How the window looks right now, for the title bar. None outside Windows.
+#[tauri::command]
+fn frame_state() -> Option<serde_json::Value> {
+    #[cfg(windows)]
+    {
+        serde_json::to_value(frame::state()).ok()
+    }
+    #[cfg(not(windows))]
+    {
+        None
+    }
+}
+
+/// Where the title bar's maximise button is, in CSS pixels from the window's right edge.
+#[tauri::command]
+fn set_maximize_button(right: f64, width: f64, height: f64) {
+    #[cfg(windows)]
+    frame::set_button(right, width, height);
+    #[cfg(not(windows))]
+    let _ = (right, width, height);
+}
+
+/// Opens the window's system menu, as right-clicking a title bar or pressing Alt+Space does.
+#[tauri::command]
+fn system_menu(app: AppHandle, from_keyboard: bool) {
+    #[cfg(windows)]
+    let _ = app.run_on_main_thread(move || frame::show_system_menu(from_keyboard));
+    #[cfg(not(windows))]
+    let _ = (app, from_keyboard);
+}
+
 /// Lists a run's temporary files; see `runner::sweep`.
 fn journal(app: &AppHandle) -> Option<std::path::PathBuf> {
     let dir = app.path().app_local_data_dir().ok()?;
@@ -143,6 +176,10 @@ pub fn run() {
         .setup(|app| {
             #[cfg(windows)]
             windows::register_for_notifications(&app.config().identifier);
+            #[cfg(windows)]
+            if let Some(hwnd) = app.get_webview_window("main").and_then(|w| w.hwnd().ok()) {
+                frame::attach(app.handle().clone(), hwnd.0 as isize);
+            }
             if let Some(j) = journal(app.handle()) {
                 std::thread::spawn(move || runner::sweep(&j));
             }
@@ -158,7 +195,7 @@ pub fn run() {
             });
             Ok(())
         })
-        .invoke_handler(tauri::generate_handler![formats, scan, plan, compress, cancel, existing, no_bin, quit, notify, version])
+        .invoke_handler(tauri::generate_handler![formats, scan, plan, compress, cancel, existing, no_bin, quit, frame_state, set_maximize_button, system_menu, notify, version])
         .run(tauri::generate_context!())
         .expect("error while running Sastra Compressor");
 }

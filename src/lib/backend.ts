@@ -6,6 +6,15 @@ import type { Formats, JobUpdate, Kind, RunChoices, ScanResult, Settings } from 
 
 export const inApp = isTauri();
 
+/** What the title bar draws differently (src-tauri/src/frame.rs). */
+export interface FrameState {
+  maximized: boolean;
+  active: boolean;
+  /** The pointer is over the maximise button, which the interface can't see for itself. */
+  hover: boolean;
+  pressed: boolean;
+}
+
 export interface Job {
   id: string;
   path: string;
@@ -38,6 +47,15 @@ interface Backend {
   notify(title: string, body: string): Promise<void>;
   onCloseRequested(fn: () => boolean): Promise<() => void>;
   quit(): Promise<void>;
+  /** The title bar's window controls. */
+  minimize(): Promise<void>;
+  toggleMaximize(): Promise<void>;
+  close(): Promise<void>;
+  frameState(): Promise<FrameState | null>;
+  onFrame(fn: (s: FrameState) => void): Promise<() => void>;
+  setMaximizeButton(right: number, width: number, height: number): Promise<void>;
+  systemMenu(fromKeyboard: boolean): Promise<void>;
+  setBackground(color: string): Promise<void>;
   show(): Promise<void>;
 }
 
@@ -103,6 +121,14 @@ async function tauriBackend(): Promise<Backend> {
         if (!fn()) e.preventDefault();
       }),
     quit: () => invoke('quit'),
+    minimize: () => win.minimize(),
+    toggleMaximize: () => win.toggleMaximize(),
+    close: () => win.close(),
+    frameState: () => invoke('frame_state'),
+    onFrame: (fn) => listen<FrameState>('frame', (e) => fn(e.payload)),
+    setMaximizeButton: (right, width, height) => invoke('set_maximize_button', { right, width, height }),
+    systemMenu: (fromKeyboard) => invoke('system_menu', { fromKeyboard }),
+    setBackground: (color) => win.setBackgroundColor(color),
     show: () => win.show(),
   };
 }
@@ -199,6 +225,14 @@ function mockBackend(): Backend {
     notify: async () => {},
     onCloseRequested: async () => () => {},
     quit: async () => {},
+    minimize: async () => {},
+    toggleMaximize: async () => {},
+    close: async () => {},
+    frameState: async () => null,
+    onFrame: async () => () => {},
+    setMaximizeButton: async () => {},
+    systemMenu: async () => {},
+    setBackground: async () => {},
     show: async () => {},
   };
 }

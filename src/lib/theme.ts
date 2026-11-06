@@ -1,5 +1,5 @@
 // Automatic / Light / Dark. Saved for next time; Automatic
-// follows Windows and changes live with it. The native title bar follows too.
+// follows Windows and changes live with it. The window's border and dialogs follow too.
 import { backend } from './backend';
 
 export type ThemeChoice = 'auto' | 'light' | 'dark';
@@ -17,6 +17,9 @@ export function savedTheme(): ThemeChoice {
 function paint(choice: ThemeChoice) {
   const dark = choice === 'dark' || (choice === 'auto' && media.matches);
   document.documentElement.dataset.theme = dark ? 'dark' : 'light';
+  // What shows for a moment when the window grows faster than the page can draw.
+  const page = getComputedStyle(document.documentElement).getPropertyValue('--page').trim();
+  backend.then((b) => b.setBackground(page)).catch(() => {});
 }
 
 /** Sets the theme; `fade` cross-fades the whole window as one picture. */
