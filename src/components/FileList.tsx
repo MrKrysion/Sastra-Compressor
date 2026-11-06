@@ -63,7 +63,7 @@ const FileRow = memo(function FileRow({ row, target, busy, onRemove, onReveal }:
           </small>
         ) : (
           <small className="warn-text">
-            <i className="fa-solid fa-triangle-exclamation" aria-hidden="true" /> {bytes(s.outSize)}, {percent(-saved)} bigger than the original
+            <i className="fa-solid fa-triangle-exclamation" aria-hidden="true" /> {bytes(s.outSize)}, {percent(-saved)} bigger than the original{s.note && !s.note.warn && <> · {s.note.text}</>}
           </small>
         )}
         {s.note?.warn && (
