@@ -55,7 +55,7 @@ const FileRow = memo(function FileRow({ row, target, busy, onRemove, onReveal }:
     meta = (
       <>
         {s.kept ? (
-          <small>{bytes(row.size)} · Already small, so the original was kept</small>
+          <small>{bytes(row.size)} · {s.note?.text ?? 'Already small, so the original was kept'}</small>
         ) : saved >= 0 ? (
           <small>
             {bytes(row.size)} <i className="fa-solid fa-arrow-right arrow" aria-label="became" /> {bytes(s.outSize)} · <b className="saved">{percent(saved)} smaller</b>

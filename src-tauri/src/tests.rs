@@ -86,7 +86,7 @@ fn audio_becomes_opus_with_progress() {
     make(&src, &["-f", "lavfi", "-i", "sine=frequency=440:duration=5"]);
     let out = d.join("theme.ogg");
     let mut seen = vec![];
-    ffmpeg::run(Kind::Audio, &src, &out, &settings(), &Arc::new(AtomicBool::new(false)), |p| seen.push(p)).unwrap();
+    ffmpeg::run(Kind::Audio, &src, &out, &settings(), &ffmpeg::inspect(&src), &Arc::new(AtomicBool::new(false)), |p| seen.push(p)).unwrap();
     assert!(std::fs::metadata(&out).unwrap().len() > 1000);
     assert!(seen.iter().any(|p| *p > 0.5), "progress was reported: {seen:?}");
 }
@@ -100,7 +100,7 @@ fn odd_sized_video_is_shrunk_and_made_even() {
     let src = d.join("op.mkv");
     make(&src, &["-f", "lavfi", "-i", "testsrc2=size=1921x1081:rate=24:duration=1", "-c:v", "libx264"]);
     let out = d.join("op.mp4");
-    ffmpeg::run(Kind::Video, &src, &out, &settings(), &Arc::new(AtomicBool::new(false)), |_| {}).unwrap();
+    ffmpeg::run(Kind::Video, &src, &out, &settings(), &ffmpeg::inspect(&src), &Arc::new(AtomicBool::new(false)), |_| {}).unwrap();
     let probe = Command::new("ffprobe")
         .args(["-v", "error", "-select_streams", "v", "-show_entries", "stream=width,height", "-of", "csv=p=0"])
         .arg(&out)
@@ -117,7 +117,7 @@ fn audio_file_without_sound_says_so() {
     let d = temp("silent");
     let src = d.join("silent.mp4");
     make(&src, &["-f", "lavfi", "-i", "testsrc2=size=64x64:duration=1", "-c:v", "libx264"]);
-    let err = ffmpeg::run(Kind::Audio, &src, &d.join("x.ogg"), &settings(), &Arc::new(AtomicBool::new(false)), |_| {}).unwrap_err();
+    let err = ffmpeg::run(Kind::Audio, &src, &d.join("x.ogg"), &settings(), &ffmpeg::inspect(&src), &Arc::new(AtomicBool::new(false)), |_| {}).unwrap_err();
     assert!(err.starts_with("This file has no sound in it."), "{err}");
 }
 
@@ -188,6 +188,78 @@ fn animations_stay_animated() {
     assert_eq!(total, 800, "four frames of 200 ms, the last one included ({} frames)", frames.len());
 }
 
+/// A heavily compressed WebP, which a sharper setting can only make bigger.
+fn small_webp(d: &Path) -> PathBuf {
+    let seed = d.join("seed.png");
+    image::RgbImage::from_fn(256, 256, |x, y| image::Rgb([(x * 7 % 251) as u8, (y * 13 % 241) as u8, ((x ^ y) % 256) as u8])).save(&seed).unwrap();
+    let webp = d.join("small.webp");
+    image_job::compress(&seed, &webp, 20.0, 0).unwrap();
+    webp
+}
+
+fn run_one(path: &Path, s: &Settings) -> Vec<Update> {
+    let jobs = vec![Job { id: "1".into(), path: path.to_string_lossy().into(), rel: path.file_name().unwrap().to_string_lossy().into(), kind: Kind::Image }];
+    let seen = Mutex::new(vec![]);
+    work(jobs, s, &Arc::new(AtomicBool::new(false)), &|u| seen.lock().unwrap().push(u));
+    seen.into_inner().unwrap()
+}
+
+#[test]
+fn alongside_saves_nothing_when_the_result_is_not_smaller() {
+    let d = temp("kept-beside");
+    let webp = small_webp(&d);
+    let seen = run_one(&webp, &Settings { image_quality: Level::Sharper, ..settings() });
+    assert!(matches!(seen.last(), Some(Update::Done { kept: true, .. })), "{seen:?}");
+    assert!(!d.join("small_compressed.webp").exists());
+}
+
+#[test]
+fn a_chosen_folder_gets_the_original_when_the_result_is_not_smaller() {
+    let d = temp("kept-folder");
+    let webp = small_webp(&d);
+    let out = d.join("out");
+    let s = Settings { image_quality: Level::Sharper, save_mode: SaveMode::Folder, output_folder: Some(out.to_string_lossy().into()), ..settings() };
+    let seen = run_one(&webp, &s);
+    match seen.last() {
+        Some(Update::Done { kept: true, note: Some(n), .. }) => assert!(n.text.contains("copied")),
+        other => panic!("{other:?}"),
+    }
+    assert_eq!(std::fs::read(out.join("small.webp")).unwrap(), std::fs::read(&webp).unwrap());
+    // Running it again doesn't pile up copies...
+    run_one(&webp, &s);
+    assert!(!out.join("small_2.webp").exists());
+    // ...and someone else's file of that name is left alone.
+    std::fs::write(out.join("small.webp"), b"mine").unwrap();
+    run_one(&webp, &s);
+    assert_eq!(std::fs::read(out.join("small.webp")).unwrap(), b"mine");
+    assert_eq!(std::fs::read(out.join("small_2.webp")).unwrap(), std::fs::read(&webp).unwrap());
+}
+
+#[test]
+fn a_format_browsers_cannot_show_is_converted_even_if_bigger() {
+    let d = temp("bmp");
+    let bmp = d.join("tiny.bmp");
+    image::RgbImage::from_fn(2, 2, |x, y| image::Rgb([(x * 90) as u8, (y * 90) as u8, 9])).save(&bmp).unwrap();
+    let seen = run_one(&bmp, &settings());
+    assert!(matches!(seen.last(), Some(Update::Done { kept: false, .. })), "{seen:?}");
+    assert!(d.join("tiny_compressed.webp").exists());
+}
+
+#[test]
+fn low_bitrate_sound_stays_low() {
+    if !have_ffmpeg() {
+        return;
+    }
+    let d = temp("lowsound");
+    let src = d.join("low.mp4");
+    make(&src, &["-f", "lavfi", "-i", "testsrc2=size=160x90:duration=2", "-f", "lavfi", "-i", "sine=duration=2", "-c:v", "libx264", "-c:a", "aac", "-b:a", "48k", "-shortest"]);
+    let info = ffmpeg::inspect(&src);
+    assert!(info.audio_kbps().is_some_and(|k| k <= 60), "{info:?}");
+    let a = ffmpeg::args(Kind::Video, &src, &d.join("o.mp4"), &settings(), info.audio_kbps());
+    let at = a.iter().position(|x| x == "-b:a").unwrap();
+    assert!(a[at + 1].trim_end_matches('k').parse::<u32>().unwrap() <= 60, "{a:?}");
+}
+
 #[test]
 fn every_listed_image_format_compresses() {
     let d = temp("formats");
@@ -229,7 +301,7 @@ fn wide_gamut_colours_keep_their_profile() {
 
 #[test]
 fn the_frame_rate_cap_is_only_asked_for_when_chosen() {
-    let cap = |fps| ffmpeg::args(Kind::Video, Path::new("a.mp4"), Path::new("b.mp4"), &Settings { video_max_fps: fps, ..settings() });
+    let cap = |fps| ffmpeg::args(Kind::Video, Path::new("a.mp4"), Path::new("b.mp4"), &Settings { video_max_fps: fps, ..settings() }, None);
     assert!(cap(30).windows(2).any(|w| w[0] == "-fpsmax" && w[1] == "30"));
     assert!(!cap(0).iter().any(|a| a == "-fpsmax"));
 }

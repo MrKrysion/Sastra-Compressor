@@ -64,7 +64,7 @@ export type RowState =
   | { state: 'running'; progress: number }
   /**
    * `replaced`: the original is gone from its place, so this file can't be done again.
-   * `kept`: replacing, but the result wasn't smaller, so the original stayed.
+   * `kept`: the result wasn't smaller, so the original was kept instead.
    */
   | { state: 'done'; outPath: string; outSize: number; replaced: boolean; kept: boolean; note: Note | null }
   | { state: 'failed'; error: string };

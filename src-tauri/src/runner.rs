@@ -4,7 +4,7 @@
 //! so a cancelled or failed file never leaves half a file behind.
 
 use crate::formats::Kind;
-use crate::settings::{key, plan, Job, SaveMode, Settings};
+use crate::settings::{key, numbered, plan, Job, SaveMode, Settings};
 use crate::{ffmpeg, image_job};
 use serde::Serialize;
 use std::path::{Path, PathBuf};
@@ -28,7 +28,7 @@ pub struct Note {
 #[serde(tag = "state", rename_all = "camelCase", rename_all_fields = "camelCase")]
 pub enum Update {
     Running { id: String, progress: f64 },
-    /// `kept`: replacing, but the result wasn't smaller, so the original stayed.
+    /// `kept`: the result wasn't smaller, so the original was kept instead.
     Done { id: String, out_path: String, out_size: u64, kept: bool, note: Option<Note> },
     Failed { id: String, error: String },
     Cancelled { id: String },
@@ -119,12 +119,16 @@ fn one(job: &Job, output: &Path, s: &Settings, cancel: &Arc<AtomicBool>, emit: &
     }
     let part = part_path(output);
 
+    let extension = input.extension().map(|e| e.to_string_lossy().into_owned()).unwrap_or_default();
+    let mut plays_in_browsers = ["webp", "jpg", "jpeg", "png", "gif"].contains(&extension.to_ascii_lowercase().as_str());
     let result = match job.kind {
         Kind::Image => image_job::compress(input, &part, s.webp_quality(), s.image_max_width),
         kind => {
+            let info = ffmpeg::inspect(input);
+            plays_in_browsers = info.plays_in_browsers(kind, &extension);
             // ffmpeg reports often; pass on at most ten updates a second.
             let mut last = Instant::now() - Duration::from_secs(1);
-            ffmpeg::run(kind, input, &part, s, cancel, |p| {
+            ffmpeg::run(kind, input, &part, s, &info, cancel, |p| {
                 if last.elapsed() >= Duration::from_millis(100) {
                     last = Instant::now();
                     emit(Update::Running { id: id.clone(), progress: p });
@@ -137,13 +141,17 @@ fn one(job: &Job, output: &Path, s: &Settings, cancel: &Arc<AtomicBool>, emit: &
         if cancel.load(Ordering::Relaxed) {
             return Err("cancelled".to_string());
         }
-        finish(input, &part, output, s).map(|kept| (kept, note))
+        finish(input, &part, output, s, plays_in_browsers).map(|saved| (saved, note))
     });
     match result {
-        Ok((kept, note)) => {
-            let saved = if kept { input } else { output };
-            let out_size = std::fs::metadata(saved).map(|m| m.len()).unwrap_or(0);
-            emit(Update::Done { id, out_path: saved.to_string_lossy().into_owned(), out_size, kept, note });
+        Ok((saved, note)) => {
+            let out_size = std::fs::metadata(saved.path()).map(|m| m.len()).unwrap_or(0);
+            let (kept, note) = match &saved {
+                Saved::Compressed(_) => (false, note),
+                Saved::KeptOriginal(_) => (true, None),
+                Saved::CopiedOriginal(_) => (true, Some(Note { text: "Already small, so the original was copied".into(), warn: false })),
+            };
+            emit(Update::Done { id, out_path: saved.path().to_string_lossy().into_owned(), out_size, kept, note });
         }
         Err(e) => {
             let _ = std::fs::remove_file(&part);
@@ -158,28 +166,94 @@ fn one(job: &Job, output: &Path, s: &Settings, cancel: &Arc<AtomicBool>, emit: &
 
 const NO_BIN: &str = "This drive has no Recycle Bin, so the original was kept and nothing was replaced.";
 
-/// Puts the finished file in place. Returns true if the original stayed instead.
-fn finish(input: &Path, part: &Path, output: &Path, s: &Settings) -> Result<bool, String> {
-    let save = || std::fs::rename(part, output).map_err(|e| format!("Couldn't save {}.\n{e}", output.display()));
-    if s.save_mode != SaveMode::Replace {
-        return save().map(|()| false);
+/// Where a finished job's file ended up.
+enum Saved {
+    Compressed(PathBuf),
+    /// Nothing new was made: the original is the file to use.
+    KeptOriginal(PathBuf),
+    /// The original, copied to the chosen folder.
+    CopiedOriginal(PathBuf),
+}
+
+impl Saved {
+    fn path(&self) -> &Path {
+        match self {
+            Saved::Compressed(p) | Saved::KeptOriginal(p) | Saved::CopiedOriginal(p) => p,
+        }
     }
+}
+
+/// Puts the finished file in place. A result that isn't smaller is only worth having
+/// if browsers can't play the original; otherwise it just loses quality and space.
+fn finish(input: &Path, part: &Path, output: &Path, s: &Settings, plays_in_browsers: bool) -> Result<Saved, String> {
     let size = |p: &Path| std::fs::metadata(p).map(|m| m.len()).unwrap_or(0);
-    // Replacing a file with a bigger one would only lose quality and space.
-    if size(part) >= size(input) {
-        let _ = std::fs::remove_file(part);
-        return Ok(true);
+    if plays_in_browsers && size(part) >= size(input) {
+        return keep_original(input, part, output, s);
+    }
+    let save = || std::fs::rename(part, output).map_err(|e| format!("Couldn't save {}.\n{e}", output.display()));
+    let done = || Saved::Compressed(output.to_path_buf());
+    if s.save_mode != SaveMode::Replace {
+        return save().map(|()| done());
     }
     if key(input) == key(output) {
         // The same name: the original has to leave first.
         dispose(input, s)?;
-        save().map_err(|e| format!("{e}\nThe original is in the Recycle Bin.")).map(|()| false)
+        save().map_err(|e| format!("{e}\nThe original is in the Recycle Bin.")).map(|()| done())
     } else {
         // Different names: save first, so a failure here can't lose anything.
         save()?;
         dispose(input, s)
             .map_err(|e| format!("The compressed file was saved, but the original stayed where it was.\n{e}"))
-            .map(|()| false)
+            .map(|()| done())
+    }
+}
+
+/// Throws the bigger result away. A chosen folder still gets a copy of the original, under
+/// its own name and type, so that the folder ends up complete.
+fn keep_original(input: &Path, part: &Path, output: &Path, s: &Settings) -> Result<Saved, String> {
+    let _ = std::fs::remove_file(part);
+    let kept = || Saved::KeptOriginal(input.to_path_buf());
+    if s.save_mode != SaveMode::Folder {
+        return Ok(kept());
+    }
+    let wanted = match input.extension() {
+        Some(ext) => output.with_extension(ext),
+        None => output.with_extension(""),
+    };
+    if key(&wanted) == key(input) {
+        return Ok(kept());
+    }
+    // Never over someone else's file. The same file again, from an earlier run, is fine.
+    let mut target = wanted.clone();
+    let mut n = 1;
+    while target.exists() && !same_contents(input, &target) {
+        n += 1;
+        target = numbered(&wanted, n);
+    }
+    if !target.exists() {
+        std::fs::copy(input, part).map_err(|e| format!("Couldn't copy the original to {}.\n{e}", target.display()))?;
+        std::fs::rename(part, &target).map_err(|e| format!("Couldn't save {}.\n{e}", target.display()))?;
+    }
+    Ok(Saved::CopiedOriginal(target))
+}
+
+fn same_contents(a: &Path, b: &Path) -> bool {
+    use std::io::Read;
+    let (Ok(ma), Ok(mb)) = (std::fs::metadata(a), std::fs::metadata(b)) else { return false };
+    if ma.len() != mb.len() {
+        return false;
+    }
+    let (Ok(fa), Ok(fb)) = (std::fs::File::open(a), std::fs::File::open(b)) else { return false };
+    let (mut ra, mut rb) = (std::io::BufReader::new(fa), std::io::BufReader::new(fb));
+    let (mut ba, mut bb) = (vec![0u8; 65536], vec![0u8; 65536]);
+    loop {
+        let Ok(n) = ra.read(&mut ba) else { return false };
+        if n == 0 {
+            return true;
+        }
+        if rb.read_exact(&mut bb[..n]).is_err() || ba[..n] != bb[..n] {
+            return false;
+        }
     }
 }
 

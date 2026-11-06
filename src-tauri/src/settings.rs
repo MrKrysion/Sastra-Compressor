@@ -145,7 +145,7 @@ fn wanted(job: &Job, s: &Settings) -> PathBuf {
     }
 }
 
-fn numbered(p: &Path, n: u32) -> PathBuf {
+pub fn numbered(p: &Path, n: u32) -> PathBuf {
     let stem = p.file_stem().map(|x| x.to_string_lossy().into_owned()).unwrap_or_default();
     let ext = p.extension().map(|x| x.to_string_lossy().into_owned()).unwrap_or_default();
     p.with_file_name(format!("{stem}_{n}.{ext}"))
