@@ -24,8 +24,8 @@ jobs:
   check:
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
         with: { node-version: 22, cache: npm }
       - run: npm ci
       - name: Type-check and build the interface
@@ -48,14 +48,14 @@ jobs:
     permissions:
       contents: write
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
         with: { node-version: 22, cache: npm }
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
         with: { workspaces: src-tauri }
 
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with: { name: ffmpeg-windows, path: ffmpeg-out }
 
       - run: npm ci
@@ -91,7 +91,7 @@ jobs:
             for f in upload/*; do echo "- $(basename "$f"): $(( $(stat -c %s "$f") / 1024 / 1024 )) MB"; done
           } >> "$GITHUB_STEP_SUMMARY"
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: SastraCompressor-windows
           path: upload

@@ -14,11 +14,11 @@ jobs:
   build:
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Restore a previous build
         id: cache
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: ffmpeg-out
           key: ffmpeg-${{ hashFiles('ffmpeg/build.sh', 'ffmpeg/versions.sh', 'ffmpeg/test.sh') }}
@@ -49,7 +49,7 @@ jobs:
           echo "ffmpeg.exe: $(numfmt --to=iec --format=%.1f "$size")B" >> "$GITHUB_STEP_SUMMARY"
           cat ffmpeg-out/BUILD.txt >> "$GITHUB_STEP_SUMMARY"
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: ffmpeg-windows
           path: ffmpeg-out
