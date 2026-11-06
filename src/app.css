@@ -44,7 +44,8 @@ input, textarea, .file-dir, .about p { user-select: text; -webkit-user-select: t
 /* The target fills the bar's height and reaches the corner; the chip is what shows. */
 .tb-btn { position: relative; width: 46px; height: 100%; padding: 0; border: 0; background: none; color: var(--ink); cursor: default; display: grid; place-items: center; transition: color var(--t-fast); }
 .tb-btn::before { content: ""; position: absolute; inset: 8px 1px; border-radius: 12px; transition: background-color var(--t-fast); }
-.tb-close { width: 53px; }
+/* Wider so it reaches the corner; the padding keeps the icon centred in the chip. */
+.tb-close { width: 53px; padding-right: 7px; }
 .tb-close::before { right: 8px; }
 .tb-btn > svg { position: relative; width: 14px; height: 14px; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
 .tb-btn.hover::before { background: var(--soft-2); }
@@ -62,8 +63,12 @@ input, textarea, .file-dir, .about p { user-select: text; -webkit-user-select: t
 	.tb-btn:hover::before, .tb-btn.hover::before { background: Highlight; forced-color-adjust: none; }
 	.tb-btn:hover, .tb-btn.hover { color: HighlightText; forced-color-adjust: none; }
 }
-/* A dialog dims everything below the bar, so the window can still be moved and closed. */
+/* A dialog dims the whole window, but only the window controls stay usable above it.
+   The bar has its own dimming layer so that it can still be dragged through. */
 .modal-backdrop { top: var(--titlebar); }
+.tb-window { position: relative; z-index: 1; }
+.app:has(.modal-backdrop.open) .titlebar::after { content: ""; position: absolute; inset: 0; background: var(--backdrop); pointer-events: none; animation: k-fade var(--t-exit) ease both; }
+.app:has(.modal-backdrop.closing) .titlebar::after { animation: k-fade-out var(--t-exit) ease both; }
 
 .app-name { display: flex; align-items: center; gap: 8px; margin: 0; font-size: 1.25rem; line-height: 1; }
 .app-name > img { height: 24px; width: auto; }

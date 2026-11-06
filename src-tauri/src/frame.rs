@@ -212,6 +212,21 @@ pub fn show_system_menu(from_keyboard: bool) {
     }
 }
 
+/// Windows places the snap layouts menu under the rectangle it's given here. Left alone
+/// it assumes a standard, shorter title bar, and the menu opens on top of the button.
+/// Reporting the real one, which runs to the bar's bottom, opens it clear of the button.
+unsafe fn report_button(lparam: LPARAM) {
+    const MAXIMIZE_BUTTON: usize = 3;
+    let button = BUTTON.load(Ordering::Relaxed) as HWND;
+    if button.is_null() || lparam == 0 {
+        return;
+    }
+    let mut rect: RECT = std::mem::zeroed();
+    if GetWindowRect(button, &mut rect) != 0 {
+        (*(lparam as *mut TITLEBARINFOEX)).rgrect[MAXIMIZE_BUTTON] = rect;
+    }
+}
+
 unsafe extern "system" fn button_proc(hwnd: HWND, msg: u32, wparam: WPARAM, lparam: LPARAM) -> LRESULT {
     match msg {
         // The whole point: Windows now treats this as the window's maximise button.
@@ -272,6 +287,9 @@ unsafe extern "system" fn parent_proc(hwnd: HWND, msg: u32, wparam: WPARAM, lpar
         _ => {}
     }
     let result = DefSubclassProc(hwnd, msg, wparam, lparam);
+    if msg == WM_GETTITLEBARINFOEX {
+        report_button(lparam);
+    }
     if msg == WM_SIZE || msg == WM_DPICHANGED {
         if wparam != SIZE_MINIMIZED as WPARAM {
             place_button();
