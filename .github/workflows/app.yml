@@ -1,13 +1,14 @@
-# Checks every push, and builds the Windows app.
+# Checks and builds the Windows app: for main, for pull requests, and on request
+# for any other branch (Actions > app > Run workflow).
 # Publishing a release on GitHub attaches the installer, a portable zip,
 # and ffmpeg's source code (the GPL asks for it) to that release.
 name: app
 
 on:
-  # Branches only: a new tag would build the same commit again, and the
-  # release event below already builds releases.
+  # Main only, and no tags: a pull request's branch would build twice otherwise,
+  # and the release event below already builds releases.
   push:
-    branches: ['**']
+    branches: [main]
   pull_request:
   release:
     types: [published]
@@ -57,6 +58,8 @@ jobs:
       - uses: actions/download-artifact@v4
         with: { name: ffmpeg-windows, path: ffmpeg-out }
 
+      - run: npm ci
+
       - name: Put ffmpeg and the licences in place
         shell: bash
         run: |
@@ -64,9 +67,8 @@ jobs:
           mkdir -p src-tauri/licences
           cp ffmpeg-out/licences/* ffmpeg-out/BUILD.txt src-tauri/licences/
           cp src/design/fonts/OFL.txt src-tauri/licences/Gabarito-OFL.txt
-          cp THIRD-PARTY-NOTICES.md LICENSE src-tauri/licences/
-
-      - run: npm ci
+          node tools/third-party-licences.mjs
+          cp THIRD-PARTY-NOTICES.md THIRD-PARTY-LICENCES.txt LICENSE src-tauri/licences/
 
       - name: Build
         shell: bash

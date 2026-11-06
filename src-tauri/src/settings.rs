@@ -36,9 +36,18 @@ pub struct Settings {
     pub video_quality: Level,
     /// 0 keeps the width.
     pub video_max_width: u32,
+    /// 0 keeps the frame rate.
+    #[serde(default)]
+    pub video_max_fps: u32,
     pub save_mode: SaveMode,
     /// Used when `save_mode` is `Folder`.
     pub output_folder: Option<String>,
+    /// For this run: give new files a number rather than overwrite what's there.
+    #[serde(default)]
+    pub keep_existing: bool,
+    /// For this run: the person agreed that originals with no Recycle Bin to go to are deleted.
+    #[serde(default)]
+    pub delete_for_good: bool,
 }
 
 impl Settings {
@@ -71,8 +80,9 @@ pub struct Job {
 }
 
 /// Where every job is saved. Two jobs never get the same file (bg.png and
-/// bg.jpg would both be bg.webp: the second becomes bg_2.webp), and
-/// replacing never overwrites a file that isn't one of the originals.
+/// bg.jpg would both be bg.webp: the second becomes bg_2.webp), no job
+/// overwrites another job's original, and replacing never overwrites
+/// anything else that's already there.
 pub fn plan(jobs: &[Job], s: &Settings) -> Vec<PathBuf> {
     let inputs: HashSet<String> = jobs.iter().map(|j| key(Path::new(&j.path))).collect();
     let mut taken = HashSet::new();
@@ -85,11 +95,11 @@ pub fn plan(jobs: &[Job], s: &Settings) -> Vec<PathBuf> {
                 let candidate = if n == 1 { want.clone() } else { numbered(&want, n) };
                 let k = key(&candidate);
                 let is_own_input = k == key(input);
-                // When replacing, another file of the same name is only fair game if it is
-                // this file's own original; elsewhere this app's earlier output is overwritten.
-                let clashes_on_disk = s.save_mode == SaveMode::Replace
-                    && !is_own_input
-                    && (inputs.contains(&k) || candidate.exists());
+                // Another job's original is never fair game. Other files of that name are
+                // protected when replacing, or when the person chose to keep them; the
+                // interface asks before anything else is overwritten (see `existing`).
+                let protect_disk = s.save_mode == SaveMode::Replace || s.keep_existing;
+                let clashes_on_disk = !is_own_input && (inputs.contains(&k) || (protect_disk && candidate.exists()));
                 if !taken.contains(&k) && !clashes_on_disk {
                     taken.insert(k);
                     return candidate;
@@ -97,6 +107,16 @@ pub fn plan(jobs: &[Job], s: &Settings) -> Vec<PathBuf> {
                 n += 1;
             }
         })
+        .collect()
+}
+
+/// Files already on disk that this run would overwrite.
+pub fn existing(jobs: &[Job], s: &Settings) -> Vec<PathBuf> {
+    plan(jobs, s)
+        .into_iter()
+        .zip(jobs)
+        .filter(|(out, job)| out.exists() && key(out) != key(Path::new(&job.path)))
+        .map(|(out, _)| out)
         .collect()
 }
 
@@ -132,7 +152,7 @@ fn numbered(p: &Path, n: u32) -> PathBuf {
 }
 
 /// Windows doesn't tell upper and lower case apart in file names.
-fn key(p: &Path) -> String {
+pub fn key(p: &Path) -> String {
     let p = std::fs::canonicalize(p).unwrap_or_else(|_| p.to_path_buf());
     let s = p.to_string_lossy().replace('\\', "/");
     if cfg!(windows) { s.to_lowercase() } else { s }
@@ -149,8 +169,11 @@ mod tests {
             audio_bitrate: 96,
             video_quality: Level::Balanced,
             video_max_width: 0,
+            video_max_fps: 0,
             save_mode: mode,
             output_folder: folder.map(String::from),
+            keep_existing: false,
+            delete_for_good: false,
         }
     }
 
@@ -198,5 +221,38 @@ mod tests {
             plan(&j, &settings(SaveMode::Replace, None)),
             [PathBuf::from("/vn/bg_2.webp"), PathBuf::from("/vn/bg.webp")]
         );
+    }
+
+    #[test]
+    fn no_mode_overwrites_another_original() {
+        let dir = std::env::temp_dir().join(format!("sastra-plan-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let (png, webp) = (dir.join("school.png"), dir.join("school.webp"));
+        std::fs::write(&png, b"a").unwrap();
+        std::fs::write(&webp, b"b").unwrap();
+        let folder = dir.to_string_lossy().into_owned();
+        let j = [
+            job(&png.to_string_lossy(), "school.png", Kind::Image),
+            job(&webp.to_string_lossy(), "school.webp", Kind::Image),
+        ];
+        // Saving to the folder they're already in: school.webp is an original, so it is left alone.
+        let out = plan(&j, &settings(SaveMode::Folder, Some(&folder)));
+        assert_eq!(out[0], dir.join("school_2.webp"));
+        assert_eq!(out[1], dir.join("school_compressed.webp"));
+    }
+
+    #[test]
+    fn keeping_what_is_there_numbers_the_new_file() {
+        let dir = std::env::temp_dir().join(format!("sastra-keep-{}", std::process::id()));
+        let out_dir = dir.join("out");
+        std::fs::create_dir_all(&out_dir).unwrap();
+        std::fs::write(out_dir.join("cg.webp"), b"mine").unwrap();
+        let folder = out_dir.to_string_lossy().into_owned();
+        let j = [job(&dir.join("cg.png").to_string_lossy(), "cg.png", Kind::Image)];
+        let s = settings(SaveMode::Folder, Some(&folder));
+        assert_eq!(existing(&j, &s), [out_dir.join("cg.webp")]);
+        let keep = Settings { keep_existing: true, ..s };
+        assert_eq!(plan(&j, &keep), [out_dir.join("cg_2.webp")]);
+        assert!(existing(&j, &keep).is_empty());
     }
 }

@@ -1,11 +1,9 @@
-# Builds and tests ffmpeg.exe. The app workflow (app.yml) uses it too;
-# the result is cached, so ffmpeg is only rebuilt when ffmpeg/ changes.
+# Builds and tests ffmpeg.exe. The app workflow (app.yml) runs this on every
+# build, so it has no push trigger of its own. The result is cached, so ffmpeg
+# is only rebuilt and retested when its recipe changes.
 name: ffmpeg
 
 on:
-  push:
-    branches: ["**"]
-    paths: ["ffmpeg/**", ".github/workflows/ffmpeg.yml"]
   workflow_dispatch:
   workflow_call:
 
@@ -23,7 +21,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ffmpeg-out
-          key: ffmpeg-${{ hashFiles('ffmpeg/build.sh', 'ffmpeg/versions.sh') }}
+          key: ffmpeg-${{ hashFiles('ffmpeg/build.sh', 'ffmpeg/versions.sh', 'ffmpeg/test.sh') }}
 
       - name: Install the cross-compiler
         if: steps.cache.outputs.cache-hit != 'true'
@@ -38,6 +36,7 @@ jobs:
           mv "$RUNNER_TEMP/ffmpeg-work/out" ffmpeg-out
 
       - name: Test every accepted format
+        if: steps.cache.outputs.cache-hit != 'true'
         run: |
           sudo dpkg --add-architecture i386
           sudo apt-get update -qq

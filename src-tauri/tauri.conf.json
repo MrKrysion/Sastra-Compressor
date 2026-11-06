@@ -2,7 +2,7 @@
   "$schema": "https://schema.tauri.app/config/2",
   "productName": "Sastra Compressor",
   "mainBinaryName": "SastraCompressor",
-  "version": "2.0.0",
+  "version": "2.1.0",
   "identifier": "com.krysion.sastra.compressor",
   "build": {
     "beforeDevCommand": "npm run dev",
@@ -26,7 +26,7 @@
       }
     ],
     "security": {
-      "csp": "default-src 'self'; img-src 'self' data: asset: http://asset.localhost; style-src 'self' 'unsafe-inline'; font-src 'self' data:"
+      "csp": "default-src 'self'; connect-src ipc: http://ipc.localhost; img-src 'self' data: asset: http://asset.localhost; style-src 'self' 'unsafe-inline'; font-src 'self' data:"
     }
   },
   "bundle": {
@@ -42,6 +42,7 @@
     "windows": {
       "nsis": {
         "installMode": "currentUser",
+        "installerHooks": "installer/hooks.nsh",
         "installerIcon": "icons/icon.ico",
         "uninstallerIcon": "icons/icon.ico",
         "uninstallerHeaderImage": "installer/header.bmp",

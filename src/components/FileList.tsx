@@ -52,12 +52,26 @@ const FileRow = memo(function FileRow({ row, target, busy, onRemove, onReveal }:
   } else if (s.state === 'done') {
     const saved = 1 - s.outSize / Math.max(1, row.size);
     cls += ' done';
-    meta = saved >= 0 ? (
-      <small>{bytes(row.size)} <i className="fa-solid fa-arrow-right arrow" aria-label="became" /> {bytes(s.outSize)} · <b className="saved">{percent(saved)} smaller</b></small>
-    ) : (
-      <small className="warn-text">
-        <i className="fa-solid fa-triangle-exclamation" aria-hidden="true" /> {bytes(s.outSize)}, {percent(-saved)} bigger than the original
-      </small>
+    meta = (
+      <>
+        {s.kept ? (
+          <small>{bytes(row.size)} · Already small, so the original was kept</small>
+        ) : saved >= 0 ? (
+          <small>
+            {bytes(row.size)} <i className="fa-solid fa-arrow-right arrow" aria-label="became" /> {bytes(s.outSize)} · <b className="saved">{percent(saved)} smaller</b>
+            {s.note && !s.note.warn && <> · {s.note.text}</>}
+          </small>
+        ) : (
+          <small className="warn-text">
+            <i className="fa-solid fa-triangle-exclamation" aria-hidden="true" /> {bytes(s.outSize)}, {percent(-saved)} bigger than the original
+          </small>
+        )}
+        {s.note?.warn && (
+          <small className="warn-text">
+            <i className="fa-solid fa-triangle-exclamation" aria-hidden="true" /> {s.note.text}
+          </small>
+        )}
+      </>
     );
   } else {
     const [message, detail] = s.error.split('\n');

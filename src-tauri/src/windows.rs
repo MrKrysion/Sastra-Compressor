@@ -1,4 +1,5 @@
-//! Windows notifications.
+//! What only Windows needs: the Recycle Bin check, tying ffmpeg to the app's
+//! life, working at a lower priority, and notifications.
 //!
 //! Windows only shows notifications from apps it knows, so the app introduces
 //! itself on every start: a registry entry under the current user (no
@@ -10,10 +11,83 @@
 //! header gets a fully transparent icon, and the logo is shown instead as the
 //! notification's own picture, which keeps its colours.
 
-use std::path::PathBuf;
+use std::os::windows::ffi::OsStrExt;
+use std::os::windows::io::AsRawHandle;
+use std::path::{Path, PathBuf};
+use std::process::Child;
+use std::sync::OnceLock;
 use tauri_winrt_notification::{IconCrop, Toast};
+use windows_sys::Win32::Storage::FileSystem::{GetDriveTypeW, GetVolumeNameForVolumeMountPointW, GetVolumePathNameW};
+use windows_sys::Win32::System::JobObjects::{
+    AssignProcessToJobObject, CreateJobObjectW, JobObjectExtendedLimitInformation, SetInformationJobObject,
+    JOBOBJECT_EXTENDED_LIMIT_INFORMATION, JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE,
+};
+use windows_sys::Win32::System::Threading::{GetCurrentThread, SetThreadPriority, THREAD_PRIORITY_BELOW_NORMAL};
 use winreg::enums::HKEY_CURRENT_USER;
 use winreg::RegKey;
+
+/// Whether Windows would put this file in the Recycle Bin. When it can't, it deletes
+/// the file for good and reports success, which is what happens on a USB stick.
+pub fn can_recycle(path: &Path) -> bool {
+    const DRIVE_FIXED: u32 = 3;
+    let wide: Vec<u16> = path.as_os_str().encode_wide().chain([0]).collect();
+    let mut root = [0u16; 1024];
+    // SAFETY: both buffers are valid and null-terminated where the API needs it, with the true length passed.
+    unsafe {
+        if GetVolumePathNameW(wide.as_ptr(), root.as_mut_ptr(), root.len() as u32) == 0 || GetDriveTypeW(root.as_ptr()) != DRIVE_FIXED {
+            return false;
+        }
+    }
+    let mut volume = [0u16; 64];
+    // SAFETY: `root` was filled in above; `volume` is valid for the length passed.
+    let named = unsafe { GetVolumeNameForVolumeMountPointW(root.as_ptr(), volume.as_mut_ptr(), volume.len() as u32) } != 0;
+    if !named {
+        return true;
+    }
+    // `\\?\Volume{guid}\`: each drive's Bin settings are stored under that guid.
+    let volume = String::from_utf16_lossy(&volume);
+    let (Some(start), Some(end)) = (volume.find('{'), volume.find('}')) else { return true };
+    let settings = format!(r"Software\Microsoft\Windows\CurrentVersion\Explorer\BitBucket\Volume\{}", &volume[start..=end]);
+    let Ok(key) = RegKey::predef(HKEY_CURRENT_USER).open_subkey(settings) else { return true };
+    // "Don't move files to the Recycle Bin", chosen in the Bin's properties.
+    if key.get_value::<u32, _>("NukeOnDelete").unwrap_or(0) != 0 {
+        return false;
+    }
+    // A file bigger than the Bin's maximum size is deleted for good too.
+    let size = std::fs::metadata(path).map(|m| m.len()).unwrap_or(0);
+    key.get_value::<u32, _>("MaxCapacity").map_or(true, |mb| size <= u64::from(mb) * 1024 * 1024)
+}
+
+/// Windows doesn't end a program's child processes with it. Inside this job, ffmpeg
+/// dies with the app however the app ends, even in a crash or from Task Manager.
+pub fn tie_to_app(child: &Child) {
+    static JOB: OnceLock<usize> = OnceLock::new();
+    // SAFETY: the job handle lives as long as the app, on purpose: closing it, which Windows
+    // does when the app ends, is what ends ffmpeg. The struct is plain data, sized correctly.
+    unsafe {
+        let job = *JOB.get_or_init(|| {
+            let job = CreateJobObjectW(std::ptr::null(), std::ptr::null());
+            let mut limits: JOBOBJECT_EXTENDED_LIMIT_INFORMATION = std::mem::zeroed();
+            limits.BasicLimitInformation.LimitFlags = JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE;
+            SetInformationJobObject(
+                job,
+                JobObjectExtendedLimitInformation,
+                std::ptr::from_ref(&limits).cast(),
+                std::mem::size_of_val(&limits) as u32,
+            );
+            job as usize
+        });
+        AssignProcessToJobObject(job as _, child.as_raw_handle() as _);
+    }
+}
+
+/// So a batch of images leaves room for whatever else is running on the PC.
+pub fn lower_this_thread() {
+    // SAFETY: GetCurrentThread returns a stand-in handle that is always valid.
+    unsafe {
+        SetThreadPriority(GetCurrentThread(), THREAD_PRIORITY_BELOW_NORMAL);
+    }
+}
 
 const LOGO: &[u8] = include_bytes!("../icons/notification-logo.png");
 const BLANK: &[u8] = include_bytes!("../icons/notification-blank.png");

@@ -12,7 +12,7 @@ mod windows;
 use settings::{Job, Settings};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
-use tauri::{AppHandle, State};
+use tauri::{AppHandle, Manager, State};
 
 #[derive(Default)]
 struct Run {
@@ -48,13 +48,62 @@ fn compress(app: AppHandle, run: State<Run>, jobs: Vec<Job>, settings: Settings)
     }
     run.cancel.store(false, Ordering::SeqCst);
     let (cancel, busy) = (run.cancel.clone(), run.busy.clone());
-    std::thread::spawn(move || runner::run(app, jobs, settings, cancel, busy));
+    let journal = journal(&app);
+    std::thread::spawn(move || runner::run(app, jobs, settings, cancel, busy, journal));
     Ok(())
 }
 
 #[tauri::command]
 fn cancel(run: State<Run>) {
     run.cancel.store(true, Ordering::SeqCst);
+}
+
+/// Files already on disk that compressing these jobs would overwrite.
+#[tauri::command]
+async fn existing(jobs: Vec<Job>, settings: Settings) -> Vec<String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        settings::existing(&jobs, &settings).into_iter().map(|p| p.to_string_lossy().into_owned()).collect()
+    })
+    .await
+    .unwrap_or_default()
+}
+
+/// Which of these files Windows wouldn't put in the Recycle Bin (USB and network drives, mostly).
+#[tauri::command]
+async fn no_bin(paths: Vec<String>) -> Vec<String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        paths.into_iter().filter(|p| !runner::can_recycle(std::path::Path::new(p))).collect()
+    })
+    .await
+    .unwrap_or_default()
+}
+
+/// Closes at once for the person, then tidies up out of sight: the running files are
+/// stopped and their temporary copies removed before the app really exits.
+#[tauri::command]
+fn quit(app: AppHandle, run: State<Run>) {
+    if let Some(w) = app.get_webview_window("main") {
+        let _ = w.hide();
+    }
+    run.cancel.store(true, Ordering::SeqCst);
+    let busy = run.busy.clone();
+    std::thread::spawn(move || {
+        // A large image can't be interrupted, but none takes anything like this long.
+        for _ in 0..300 {
+            if !busy.load(Ordering::SeqCst) {
+                break;
+            }
+            std::thread::sleep(std::time::Duration::from_millis(100));
+        }
+        app.exit(0);
+    });
+}
+
+/// Lists a run's temporary files; see `runner::sweep`.
+fn journal(app: &AppHandle) -> Option<std::path::PathBuf> {
+    let dir = app.path().app_local_data_dir().ok()?;
+    std::fs::create_dir_all(&dir).ok()?;
+    Some(dir.join("running.txt"))
 }
 
 /// A notification when compressing is done. On Windows the app sends it itself, with
@@ -79,6 +128,14 @@ fn version() -> &'static str {
 
 pub fn run() {
     tauri::Builder::default()
+        // First, so a second copy hands over and exits before doing anything else.
+        .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
+            if let Some(w) = app.get_webview_window("main") {
+                let _ = w.unminimize();
+                let _ = w.show();
+                let _ = w.set_focus();
+            }
+        }))
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_notification::init())
         .plugin(tauri_plugin_opener::init())
@@ -86,11 +143,14 @@ pub fn run() {
         .setup(|app| {
             #[cfg(windows)]
             windows::register_for_notifications(&app.config().identifier);
+            if let Some(j) = journal(app.handle()) {
+                std::thread::spawn(move || runner::sweep(&j));
+            }
             // The interface shows the window once it has drawn; if it never does, show it anyway.
             let handle = app.handle().clone();
             std::thread::spawn(move || {
                 std::thread::sleep(std::time::Duration::from_secs(3));
-                if let Some(w) = tauri::Manager::get_webview_window(&handle, "main") {
+                if let Some(w) = handle.get_webview_window("main") {
                     if !w.is_visible().unwrap_or(true) {
                         let _ = w.show();
                     }
@@ -98,7 +158,7 @@ pub fn run() {
             });
             Ok(())
         })
-        .invoke_handler(tauri::generate_handler![formats, scan, plan, compress, cancel, notify, version])
+        .invoke_handler(tauri::generate_handler![formats, scan, plan, compress, cancel, existing, no_bin, quit, notify, version])
         .run(tauri::generate_context!())
         .expect("error while running Sastra Compressor");
 }

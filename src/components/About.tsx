@@ -11,11 +11,11 @@ const CREDITS: [string, string, string][] = [
   ['x264', 'GNU GPL 2 or later', 'https://www.videolan.org/developers/x264.html'],
   ['Opus', 'BSD', 'https://opus-codec.org'],
   ['dav1d', 'BSD', 'https://code.videolan.org/videolan/dav1d'],
-  ['libwebp', 'BSD', 'https://chromium.googlesource.com/webm/libwebp'],
+  ['libwebp', 'BSD 3-clause', 'https://chromium.googlesource.com/webm/libwebp'],
   ['Tauri', 'MIT or Apache 2.0', 'https://tauri.app'],
   ['React', 'MIT', 'https://react.dev'],
   ['Gabarito', 'SIL Open Font Licence 1.1', 'https://github.com/naipefoundry/gabarito'],
-  ['Font Awesome Free', 'CC BY 4.0 and SIL OFL 1.1', 'https://fontawesome.com'],
+  ['Font Awesome Free', 'CC BY 4.0, SIL OFL 1.1, and MIT', 'https://fontawesome.com'],
 ];
 
 export function About({ onClose }: { onClose(): void }) {
@@ -44,7 +44,6 @@ export function About({ onClose }: { onClose(): void }) {
               The bundled FFmpeg is free software under the GNU GPL. Its source code and licences come with every{' '}
               <a href={REPO + '/releases'} onClick={(e) => { e.preventDefault(); open(REPO + '/releases'); }}>release</a>.
             </p>
-            <p>Sastra™ Compressor itself is under the MIT licence.</p>
             <p>© 2026 Ken “Krysion” Nisaka</p>
           </div>
         </div>

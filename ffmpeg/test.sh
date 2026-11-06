@@ -36,7 +36,25 @@ gen "${V[@]}" "${A[@]}" -c:v mpeg4 -c:a mp3 -shortest mpeg4-mp3.avi
 gen "${V[@]}" "${A[@]}" -c:v mjpeg -c:a pcm_s16le -shortest mjpeg-pcm.avi
 gen "${V[@]}" -c:v rawvideo -pix_fmt bgr24 raw-silent.avi
 gen "${V[@]}" "${A[@]}" -c:v libx264 -c:a eac3 -shortest h264-eac3.mkv
+gen "${V[@]}" "${A[@]}" -c:v qtrle -c:a pcm_s16le -shortest qtrle.mov
+gen "${V[@]}" "${A[@]}" -c:v png -c:a pcm_s16le -shortest png.mov
+gen "${V[@]}" "${A[@]}" -c:v huffyuv -c:a pcm_s16le -shortest huffyuv.avi
+gen "${V[@]}" "${A[@]}" -c:v ffvhuff -c:a pcm_s16le -shortest ffvhuff.avi
+gen "${V[@]}" "${A[@]}" -c:v utvideo -pix_fmt yuv422p -c:a pcm_s16le -shortest utvideo.avi
+gen "${V[@]}" "${A[@]}" -c:v ffv1 -c:a flac -shortest ffv1.mkv
+gen "${V[@]}" "${A[@]}" -c:v mpeg2video -c:a mp2 -shortest mpeg2-mp2.mkv
+gen "${V[@]}" "${A[@]}" -c:v mpeg1video -c:a mp2 -shortest mpeg1-mp2.mkv
+gen "${V[@]}" "${A[@]}" -c:v msmpeg4v3 -c:a mp3 -shortest divx3.avi
+gen "${V[@]}" "${A[@]}" -c:v wmv2 -c:a mp3 -shortest wmv2.avi
+gen "${V[@]}" "${A[@]}" -c:v libx264 -c:a dca -strict -2 -shortest h264-dts.mkv
+gen "${V[@]}" "${A[@]}" -c:v libx264 -c:a pcm_alaw -shortest h264-alaw.mov
+gen "${V[@]}" "${A[@]}" -c:v libx264 -c:a pcm_mulaw -shortest h264-mulaw.mov
 # audio
+gen "${A[@]}" -c:a pcm_s8 s8.aif
+gen "${A[@]}" -c:a pcm_alaw alaw.wav
+gen "${A[@]}" -c:a pcm_mulaw mulaw.wav
+gen "${A[@]}" -c:a adpcm_ms adpcm-ms.wav
+gen "${A[@]}" -c:a adpcm_ima_wav adpcm-ima.wav
 gen "${A[@]}" -c:a pcm_s16le s16.wav
 gen "${A[@]}" -c:a pcm_s24le s24.wav
 gen "${A[@]}" -c:a pcm_f32le f32.wav

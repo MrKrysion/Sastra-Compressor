@@ -8,16 +8,16 @@ Sastra Compressor uses its own build of [FFmpeg](https://ffmpeg.org) for audio a
 | `build.sh` | Downloads the sources and cross-compiles a static `ffmpeg.exe` for 64-bit Windows from Linux. |
 | `test.sh` | Makes a sample of every accepted format and checks that `ffmpeg.exe` converts each one. |
 
-GitHub Actions runs both scripts (`.github/workflows/ffmpeg.yml`) whenever this folder changes, and the app build picks up the result. You never need to build ffmpeg yourself.
+GitHub Actions runs both scripts (`.github/workflows/ffmpeg.yml`) as part of the app build, and only when the recipe has changed; otherwise it reuses the last result. You never need to build ffmpeg yourself.
 
 ## What goes in
 
 | | Accepted |
 |---|---|
 | Video files | MP4, M4V, MOV, MKV, WebM, and AVI |
-| Video codecs | H.264, H.265 (HEVC), AV1, VP9, VP8, ProRes, DNxHD/DNxHR, MPEG-4 Part 2, Motion JPEG, and uncompressed |
+| Video codecs | H.264, H.265 (HEVC), AV1, VP9, VP8, ProRes, DNxHD/DNxHR, MPEG-4 Part 2, Motion JPEG, QuickTime Animation, PNG, HuffYUV, Ut Video, FFV1, MPEG-1, MPEG-2, DivX 3, WMV 8, and uncompressed |
 | Audio files | WAV, W64, FLAC, MP3, OGG, OGA, Opus, M4A, AAC, AIFF, and AIF |
-| Audio codecs | PCM (8-, 16-, 24-, and 32-bit, and float), FLAC, MP3, AAC, ALAC, Vorbis, Opus, AC-3, and E-AC-3 |
+| Audio codecs | PCM (8-, 16-, 24-, and 32-bit, float, A-law, and mu-law), ADPCM, FLAC, MP3, MP2, AAC, ALAC, Vorbis, Opus, AC-3, E-AC-3, and DTS |
 
 What comes out: H.264 video with AAC audio in MP4 (x264), and Opus audio in Ogg (libopus).
 

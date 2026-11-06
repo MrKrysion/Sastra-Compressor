@@ -26,11 +26,11 @@ The [Sastra™ visual novel engine](https://github.com/MrKrysion/Sastra) runs in
 
 ### What it does
 
-* **🖼️ Images → WebP.** PNG, JPEG, WebP, BMP, TIFF, and GIF (first frame). Transparency is kept, photos are turned upright, and wide images can be shrunk to 1920 or 1280 px.
+* **🖼️ Images → WebP.** PNG, JPEG, WebP, BMP, TIFF, and GIF. Transparency and colour profiles are kept, animated images stay animated, photos are turned upright, and wide images can be shrunk to 1920 or 1280 px.
 * **🎵 Audio → Opus in Ogg.** WAV, FLAC, MP3, OGG, Opus, M4A, AAC, AIFF, and W64, at 96 kbit/s for music or 64 kbit/s for voice and sound effects.
-* **🎥 Video → H.264 MP4.** MP4, MOV, MKV, WebM, and AVI, with `+faststart` so browsers can start playing straight away.
+* **🎥 Video → H.264 MP4.** MP4, MOV, MKV, WebM, and AVI, with `+faststart` so browsers can start playing straight away, and an optional maximum frame rate.
 * **📁 Whole folders.** Drop a folder and everything inside is added, subfolders included.
-* **💾 Three ways to save.** Next to the originals (as `name_compressed`), into another folder with the same names and subfolders, or in place of the originals (which go to the Recycle Bin, after asking first).
+* **💾 Three ways to save.** Next to the originals (as `name_compressed`), into another folder with the same names and subfolders, or in place of the originals (which go to the Recycle Bin, after asking first; on drives with no Bin, such as USB drives, the app warns that they are deleted for good).
 * **📊 Live progress.** Each file shows its progress and how much smaller it became; the taskbar shows overall progress, and a Windows notification tells you when everything is done.
 
 ## ⬇️ Download
@@ -77,9 +77,9 @@ The app's own styles are in `src/app.css`. The window uses the standard Windows 
 ### Releasing
 
 1. Update `version` in `package.json`, `src-tauri/tauri.conf.json`, and `src-tauri/Cargo.toml`.
-2. Publish a release on GitHub with a new tag (for example `v2.0.1`).
+2. Publish a release on GitHub with a new tag (for example `v2.1.0`).
 3. GitHub Actions builds the app and attaches the installer, the portable zip, and FFmpeg's source code to the release.
 
 ## 📄 Licence
 
-Sastra™ Compressor is released under the [MIT licence](LICENSE). The bundled FFmpeg is under the GNU GPL; see [third-party notices](THIRD-PARTY-NOTICES.md) and [ffmpeg/README.md](ffmpeg/README.md).
+Sastra™ Compressor is released under the [MIT licence](LICENSE). The Sastra™ name and logo and the Krysion design language files aren't covered by it. The bundled FFmpeg is under the GNU GPL. See [third-party notices](THIRD-PARTY-NOTICES.md) and [ffmpeg/README.md](ffmpeg/README.md).

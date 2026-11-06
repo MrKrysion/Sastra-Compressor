@@ -8,6 +8,7 @@ export const defaults: Settings = {
   audioBitrate: 96,
   videoQuality: 'balanced',
   videoMaxWidth: 0,
+  videoMaxFps: 0,
   saveMode: 'beside',
   outputFolder: null,
 };

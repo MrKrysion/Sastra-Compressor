@@ -54,6 +54,8 @@ input, textarea, .file-dir, .about p { user-select: text; -webkit-user-select: t
 
 .files { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 2px; }
 .file-row { transition: background-color var(--t-fast); }
+/* Rows out of view aren't drawn, so a list of thousands stays quick. */
+.file-row { content-visibility: auto; contain-intrinsic-size: auto 60px; }
 @media (hover: hover) { .file-row:hover { background: var(--soft); } }
 .file-row > .file-icon { font-size: 18px; text-align: center; }
 .file-row > .file-main { gap: 3px; }
@@ -88,15 +90,24 @@ input, textarea, .file-dir, .about p { user-select: text; -webkit-user-select: t
 .list-card.over:has(.drop-panel) > .drop-cover { opacity: 0; }
 
 /* ---------- settings: one card per group ---------- */
-.settings { display: flex; flex-direction: column; gap: 12px; min-height: 0; overflow-y: auto; padding-bottom: 2px; }
+.settings { display: flex; flex-direction: column; gap: 12px; min-height: 0; overflow-y: auto; padding-bottom: 1px; }
 .settings > .card { flex: none; display: flex; flex-direction: column; gap: 8px; padding: 18px 20px 20px; }
 .set-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin-bottom: 2px; }
 .set-head > h2 { font-size: 1.05rem; }
 .set-head > h2 > i { width: 1.1em; margin-right: 10px; font-size: 16px; color: var(--accent); text-align: center; }
 .field-label { font-size: .9rem; font-weight: 700; color: var(--ink); margin-top: 2px; }
 .settings .seg.block > button { padding: 0 10px; }
+/* The design language's accordion, on the panel's cards instead of its soft blocks, and one open at a time. */
+.settings > .set-acc { display: block; padding: 0; gap: 0; }
+.set-acc > .acc-q { min-height: 52px; padding: 12px 20px; }
+.set-acc > .acc-q > h2 { flex: none; font-size: 1.05rem; }
+.set-acc > .acc-q > h2 > i { width: 1.1em; margin-right: 10px; font-size: 16px; color: var(--accent); text-align: center; }
+.set-acc > .acc-q > small { flex: 1; min-width: 0; overflow: hidden; text-align: right; text-overflow: ellipsis; white-space: nowrap; font-weight: 400; }
+.set-acc > .acc-a > div > .set-fields { display: flex; flex-direction: column; gap: 8px; padding: 0 20px 20px; font-size: 1rem; color: inherit; }
 .hint { font-size: .85rem; line-height: 1.5; color: var(--muted); }
 .hint > b { color: var(--ink-2); }
+.hint.warn-text { align-items: flex-start; color: var(--warning-text); }
+.hint.warn-text > i { margin-top: .25em; }
 .folder-pick {
 	display: flex; align-items: center; gap: 10px; width: 100%; height: var(--ctl); padding: 0 18px 0 16px;
 	border: 0; border-radius: var(--r-pill); background: var(--soft); color: var(--ink);

@@ -2,7 +2,7 @@
 // Rust side; in a plain browser (`npm run dev`) a stand-in fakes the files
 // and the compressing, so the design can be worked on without building.
 import { invoke, isTauri } from '@tauri-apps/api/core';
-import type { Formats, JobUpdate, Kind, ScanResult, Settings } from './types';
+import type { Formats, JobUpdate, Kind, RunChoices, ScanResult, Settings } from './types';
 
 export const inApp = isTauri();
 
@@ -18,8 +18,12 @@ interface Backend {
   scan(paths: string[]): Promise<ScanResult>;
   /** Where each job will be saved, in the same order. */
   plan(jobs: Job[], settings: Settings): Promise<string[]>;
-  compress(jobs: Job[], settings: Settings): Promise<void>;
+  compress(jobs: Job[], settings: Settings & RunChoices): Promise<void>;
   cancel(): Promise<void>;
+  /** Files already on disk that compressing these jobs would overwrite. */
+  existing(jobs: Job[], settings: Settings): Promise<string[]>;
+  /** Which of these files Windows wouldn't put in the Recycle Bin. */
+  noBin(paths: string[]): Promise<string[]>;
   version(): Promise<string>;
   onJob(fn: (u: JobUpdate) => void): Promise<() => void>;
   onFinished(fn: (cancelled: boolean) => void): Promise<() => void>;
@@ -52,6 +56,8 @@ async function tauriBackend(): Promise<Backend> {
     plan: (jobs, settings) => invoke('plan', { jobs, settings }),
     compress: (jobs, settings) => invoke('compress', { jobs, settings }),
     cancel: () => invoke('cancel'),
+    existing: (jobs, settings) => invoke('existing', { jobs, settings }),
+    noBin: (paths) => invoke('no_bin', { paths }),
     version: () => invoke('version'),
     onJob: (fn) => listen<JobUpdate>('job', (e) => fn(e.payload)),
     onFinished: (fn) => listen<{ cancelled: boolean }>('finished', (e) => fn(e.payload.cancelled)),
@@ -96,7 +102,7 @@ async function tauriBackend(): Promise<Backend> {
       win.onCloseRequested((e) => {
         if (!fn()) e.preventDefault();
       }),
-    quit: () => win.destroy(),
+    quit: () => invoke('quit'),
     show: () => win.show(),
   };
 }
@@ -111,6 +117,8 @@ function mockBackend(): Backend {
   const samples: [string, Kind, number][] = [
     ['bg/school_hallway.png', 'image', 6_811_000],
     ['bg/rooftop_sunset.png', 'image', 7_402_000],
+    ['bg/rooftop_sunset_compressed.webp', 'image', 702_000],
+    ['bg/sparkles.gif', 'image', 3_120_000],
     ['sprites/erika_smile.png', 'image', 2_310_000],
     ['sprites/erika_angry.png', 'image', 2_287_000],
     ['music/main_theme.wav', 'audio', 52_480_000],
@@ -133,7 +141,7 @@ function mockBackend(): Backend {
     scan: async (paths) => ({
       items: paths.flatMap((p) =>
         samples.map(([rel, kind, size]) => ({
-          path: `${p}/${rel}`, name: rel.split('/').pop()!, rel, kind, size,
+          path: `${p}/${rel}`, name: rel.split('/').pop()!, rel, kind, size, compressed: rel.includes('_compressed'),
         })),
       ),
       unsupported: ['notes.txt'],
@@ -160,7 +168,10 @@ function mockBackend(): Backend {
               ? { state: 'running', id: j.id, progress: s / steps }
               : j.rel.includes('door')
                 ? { state: 'failed', id: j.id, error: "Sastra Compressor can't read this file's format.\nInvalid data found when processing input" }
-                : { state: 'done', id: j.id, outPath: j.path.replace(/\.\w+$/, '.out'), outSize: Math.round(samples[i % samples.length][2] * ratio[j.kind]) }));
+                : {
+                    state: 'done', id: j.id, outPath: j.path.replace(/\.\w+$/, '.out'), outSize: Math.round(samples[i % samples.length][2] * ratio[j.kind]), kept: false,
+                    note: j.rel.endsWith('.gif') ? { text: 'Stays animated', warn: false } : j.rel.endsWith('.mov') ? { text: 'Transparency removed: MP4 can\'t keep it', warn: true } : null,
+                  }));
           }, at + s * 120));
         }
         at += steps * 120 + 60;
@@ -172,7 +183,9 @@ function mockBackend(): Backend {
       timers.forEach(clearTimeout); timers = [];
       setTimeout(() => doneFns.forEach((f) => f(cancelled)), 50);
     },
-    version: async () => '2.0.0',
+    existing: async (jobs, s) => (s.saveMode === 'folder' ? jobs.slice(0, 2).map((j) => j.path) : []),
+    noBin: async (paths) => paths.filter((p) => p.includes('voice/')),
+    version: async () => '2.1.0',
     onJob: async (fn) => { jobFns.push(fn); return () => jobFns.splice(jobFns.indexOf(fn), 1); },
     onFinished: async (fn) => { doneFns.push(fn); return () => doneFns.splice(doneFns.indexOf(fn), 1); },
     pickFiles: async () => ['C:/VN/assets'],

@@ -25,8 +25,11 @@ fn settings() -> Settings {
         audio_bitrate: 96,
         video_quality: Level::Balanced,
         video_max_width: 1280,
+        video_max_fps: 0,
         save_mode: SaveMode::Beside,
         output_folder: None,
+        keep_existing: false,
+        delete_for_good: false,
     }
 }
 
@@ -121,8 +124,116 @@ fn audio_file_without_sound_says_so() {
 #[test]
 fn updates_reach_the_interface_in_its_own_words() {
     // The interface reads outPath and outSize; snake_case here showed "NaN KB".
-    let u = Update::Done { id: "a".into(), out_path: "b".into(), out_size: 3 };
-    assert_eq!(serde_json::to_string(&u).unwrap(), r#"{"state":"done","id":"a","outPath":"b","outSize":3}"#);
+    let u = Update::Done { id: "a".into(), out_path: "b".into(), out_size: 3, kept: false, note: None };
+    assert_eq!(serde_json::to_string(&u).unwrap(), r#"{"state":"done","id":"a","outPath":"b","outSize":3,"kept":false,"note":null}"#);
+}
+
+#[test]
+fn replacing_keeps_the_original_when_the_result_is_not_smaller() {
+    let d = temp("bigger");
+    let seed = d.join("seed.png");
+    image::RgbImage::from_fn(256, 256, |x, y| image::Rgb([(x * 7 % 251) as u8, (y * 13 % 241) as u8, ((x ^ y) % 256) as u8])).save(&seed).unwrap();
+    // A heavily compressed WebP, which a sharper setting can only make bigger.
+    let webp = d.join("small.webp");
+    image_job::compress(&seed, &webp, 20.0, 0).unwrap();
+    let before = std::fs::read(&webp).unwrap();
+    let jobs = vec![Job { id: "1".into(), path: webp.to_string_lossy().into(), rel: "small.webp".into(), kind: Kind::Image }];
+    let s = Settings { save_mode: SaveMode::Replace, image_quality: Level::Sharper, ..settings() };
+    let seen = Mutex::new(vec![]);
+    work(jobs, &s, &Arc::new(AtomicBool::new(false)), &|u| seen.lock().unwrap().push(u));
+    let seen = seen.into_inner().unwrap();
+    assert!(matches!(seen.last(), Some(Update::Done { kept: true, .. })), "{seen:?}");
+    assert_eq!(std::fs::read(&webp).unwrap(), before, "the original is untouched");
+    assert!(!d.join("small.webp.sastra-part").exists());
+}
+
+#[test]
+fn a_sprite_keeps_a_clean_edge_when_shrunk() {
+    let d = temp("fringe");
+    let src = d.join("sprite.png");
+    // White on transparent black, the way paint programs commonly export it.
+    image::RgbaImage::from_fn(800, 80, |x, _| if x < 400 { image::Rgba([0, 0, 0, 0]) } else { image::Rgba([255, 255, 255, 255]) }).save(&src).unwrap();
+    let out = d.join("sprite.webp");
+    image_job::compress(&src, &out, 100.0, 400).unwrap();
+    let back = image::open(&out).unwrap().to_rgba8();
+    for x in 190..210 {
+        let p = back.get_pixel(x, 20).0;
+        if p[3] > 8 {
+            assert!(p[0] > 220, "visible edge pixel went dark at x={x}: {p:?}");
+        }
+    }
+}
+
+#[test]
+fn animations_stay_animated() {
+    use image::codecs::gif::{GifEncoder, Repeat};
+    use image::{AnimationDecoder, Delay, Frame};
+    let d = temp("anim");
+    let src = d.join("spin.gif");
+    {
+        let mut e = GifEncoder::new(std::fs::File::create(&src).unwrap());
+        e.set_repeat(Repeat::Infinite).unwrap();
+        for i in 0..4u32 {
+            let img = image::RgbaImage::from_fn(64, 64, |x, _| image::Rgba([(x * 4) as u8, (i * 60) as u8, 0, 255]));
+            e.encode_frame(Frame::from_parts(img, 0, 0, Delay::from_numer_denom_ms(200, 1))).unwrap();
+        }
+    }
+    let out = d.join("spin.webp");
+    let note = image_job::compress(&src, &out, 75.0, 32).unwrap();
+    assert_eq!(note.unwrap().text, "Stays animated");
+    let reader = std::io::BufReader::new(std::fs::File::open(&out).unwrap());
+    let frames: Vec<_> = image::codecs::webp::WebPDecoder::new(reader).unwrap().into_frames().collect_frames().unwrap();
+    assert_eq!(frames[0].buffer().width(), 32);
+    let total: u32 = frames.iter().map(|f| { let (n, d) = f.delay().numer_denom_ms(); n / d }).sum();
+    assert_eq!(total, 800, "four frames of 200 ms, the last one included ({} frames)", frames.len());
+}
+
+#[test]
+fn a_still_gif_stays_a_still() {
+    let d = temp("still");
+    let src = d.join("one.gif");
+    image::RgbImage::from_pixel(16, 16, image::Rgb([200, 0, 0])).save(&src).unwrap();
+    assert!(image_job::compress(&src, &d.join("one.webp"), 75.0, 0).unwrap().is_none());
+}
+
+#[test]
+fn wide_gamut_colours_keep_their_profile() {
+    use image::{ImageDecoder, ImageEncoder};
+    let d = temp("icc");
+    let src = d.join("p3.png");
+    // A stand-in profile: only the colour space field matters here.
+    let mut profile = vec![0u8; 128];
+    profile[16..20].copy_from_slice(b"RGB ");
+    let mut enc = image::codecs::png::PngEncoder::new(std::fs::File::create(&src).unwrap());
+    enc.set_icc_profile(profile.clone()).unwrap();
+    enc.write_image(&[120u8; 8 * 8 * 3], 8, 8, image::ExtendedColorType::Rgb8).unwrap();
+    let out = d.join("p3.webp");
+    image_job::compress(&src, &out, 75.0, 0).unwrap();
+    let reader = std::io::BufReader::new(std::fs::File::open(&out).unwrap());
+    let mut back = image::codecs::webp::WebPDecoder::new(reader).unwrap();
+    assert_eq!(back.icc_profile().unwrap(), Some(profile));
+    assert_eq!(image::open(&out).unwrap().to_rgb8().dimensions(), (8, 8));
+}
+
+#[test]
+fn the_frame_rate_cap_is_only_asked_for_when_chosen() {
+    let cap = |fps| ffmpeg::args(Kind::Video, Path::new("a.mp4"), Path::new("b.mp4"), &Settings { video_max_fps: fps, ..settings() });
+    assert!(cap(30).windows(2).any(|w| w[0] == "-fpsmax" && w[1] == "30"));
+    assert!(!cap(0).iter().any(|a| a == "-fpsmax"));
+}
+
+#[test]
+fn leftovers_from_a_crash_are_swept_but_nothing_else() {
+    let d = temp("sweep");
+    let (part, mine) = (d.join("a.webp.sastra-part"), d.join("mine.txt"));
+    std::fs::write(&part, b"x").unwrap();
+    std::fs::write(&mine, b"x").unwrap();
+    let journal = d.join("running.txt");
+    std::fs::write(&journal, format!("{}\n{}", part.display(), mine.display())).unwrap();
+    crate::runner::sweep(&journal);
+    assert!(!part.exists());
+    assert!(mine.exists(), "only our own temporary files are ever deleted");
+    assert!(!journal.exists());
 }
 
 #[test]
@@ -138,5 +249,5 @@ fn replacing_puts_the_original_in_the_bin_and_the_webp_in_its_place() {
     assert!(matches!(seen.last(), Some(Update::Done { .. })), "{seen:?}");
     assert!(!src.exists(), "the original should be in the bin");
     assert!(d.join("cg.webp").exists());
-    assert!(!d.join("cg.webp.part").exists());
+    assert!(!d.join("cg.webp.sastra-part").exists());
 }

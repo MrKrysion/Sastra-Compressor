@@ -10,6 +10,8 @@ export interface Item {
   rel: string;
   kind: Kind;
   size: number;
+  /** Found in a folder and named like this app's own output. */
+  compressed: boolean;
 }
 
 export interface ScanResult {
@@ -30,22 +32,41 @@ export interface Settings {
   audioBitrate: number;
   videoQuality: Level;
   videoMaxWidth: number;
+  /** 0 keeps the frame rate. */
+  videoMaxFps: number;
   saveMode: SaveMode;
   /** Used when saveMode is 'folder'. */
   outputFolder: string | null;
 }
 
+/** Answers from the confirmation dialogs; they apply to one run and are never saved. */
+export interface RunChoices {
+  /** Give new files a number rather than overwrite what's there. */
+  keepExisting?: boolean;
+  /** Originals with no Recycle Bin to go to are deleted. */
+  deleteForGood?: boolean;
+}
+
+/** Something worth saying about a finished file. `warn` marks something lost. */
+export interface Note {
+  text: string;
+  warn: boolean;
+}
+
 export type JobUpdate =
   | { state: 'running'; id: string; progress: number }
-  | { state: 'done'; id: string; outPath: string; outSize: number }
+  | { state: 'done'; id: string; outPath: string; outSize: number; kept: boolean; note: Note | null }
   | { state: 'failed'; id: string; error: string }
   | { state: 'cancelled'; id: string };
 
 export type RowState =
   | { state: 'waiting' }
   | { state: 'running'; progress: number }
-  /** `replaced`: the original went to the Recycle Bin, so this file can't be done again. */
-  | { state: 'done'; outPath: string; outSize: number; replaced?: boolean }
+  /**
+   * `replaced`: the original is gone from its place, so this file can't be done again.
+   * `kept`: replacing, but the result wasn't smaller, so the original stayed.
+   */
+  | { state: 'done'; outPath: string; outSize: number; replaced: boolean; kept: boolean; note: Note | null }
   | { state: 'failed'; error: string };
 
 export interface Row extends Item {

@@ -1,6 +1,7 @@
 //! Turns dropped or picked paths into a list of files to compress.
 
 use crate::formats::{kind_of, Kind};
+use crate::runner::PART_EXT;
 use serde::Serialize;
 use std::collections::HashSet;
 use std::fs;
@@ -19,6 +20,9 @@ pub struct Item {
     pub rel: String,
     pub kind: Kind,
     pub size: u64,
+    /// Found in a folder and named like this app's own output. The interface
+    /// asks whether to include these; a file picked by hand is simply included.
+    pub compressed: bool,
 }
 
 #[derive(Serialize, Default)]
@@ -69,9 +73,9 @@ fn add(path: &Path, root: Option<&Path>, out: &mut ScanResult, seen: &mut HashSe
     let name = path.file_name().map(|n| n.to_string_lossy().into_owned()).unwrap_or_default();
     let ext = path.extension().map(|e| e.to_string_lossy().into_owned()).unwrap_or_default();
     let Some(kind) = kind_of(&ext) else {
-        // Ignore system clutter silently; tell about everything else.
+        // Ignore system clutter and this app's own leftovers silently; tell about everything else.
         let lower = name.to_ascii_lowercase();
-        if !matches!(lower.as_str(), "thumbs.db" | "desktop.ini") {
+        if !matches!(lower.as_str(), "thumbs.db" | "desktop.ini") && !lower.ends_with(PART_EXT) {
             out.unsupported.push(name);
         }
         return;
@@ -85,5 +89,27 @@ fn add(path: &Path, root: Option<&Path>, out: &mut ScanResult, seen: &mut HashSe
         .map(|r| r.to_string_lossy().replace('\\', "/"))
         .unwrap_or_else(|| name.clone());
     let size = fs::metadata(path).map(|m| m.len()).unwrap_or(0);
-    out.items.push(Item { path: path.to_string_lossy().into_owned(), name, rel, kind, size });
+    let compressed = root.is_some() && named_as_output(path);
+    out.items.push(Item { path: path.to_string_lossy().into_owned(), name, rel, kind, size, compressed });
+}
+
+/// `x_compressed.webp`, or `x_compressed_2.webp` when two files shared a name.
+fn named_as_output(path: &Path) -> bool {
+    let stem = path.file_stem().map(|s| s.to_string_lossy().to_ascii_lowercase()).unwrap_or_default();
+    let unnumbered = stem.trim_end_matches(|c: char| c.is_ascii_digit());
+    stem.ends_with(SUFFIX) || (unnumbered.len() < stem.len() && unnumbered.strip_suffix('_').is_some_and(|s| s.ends_with(SUFFIX)))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn knows_this_apps_own_output_names() {
+        assert!(named_as_output(Path::new("bg_compressed.webp")));
+        assert!(named_as_output(Path::new("bg_COMPRESSED_2.webp")));
+        assert!(!named_as_output(Path::new("bg.webp")));
+        assert!(!named_as_output(Path::new("compressed_2.webp")));
+        assert!(!named_as_output(Path::new("bg_2.webp")));
+    }
 }

@@ -9,7 +9,6 @@
     "core:window:allow-set-theme",
     "core:window:allow-set-progress-bar",
     "core:window:allow-is-focused",
-    "core:window:allow-destroy",
     "dialog:allow-open",
     "notification:default",
     "opener:default"

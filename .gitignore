@@ -4,6 +4,8 @@ dist/
 src-tauri/target/
 src-tauri/gen/
 ffmpeg/work/
+THIRD-PARTY-LICENCES.txt
+src-tauri/licences/
 
 # ffmpeg.exe is built by CI (ffmpeg/), never committed
 src-tauri/binaries/*
