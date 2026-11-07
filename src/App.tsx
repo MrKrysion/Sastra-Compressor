@@ -8,9 +8,9 @@ import { FileList } from './components/FileList';
 import { SettingsPanel } from './components/SettingsPanel';
 import { About } from './components/About';
 import { Modal, closeModal } from './components/Modal';
+import { toast } from './lib/ui';
 
 type Phase = 'idle' | 'running' | 'finished';
-const toast = (m: string, k?: 'info' | 'ok' | 'err' | 'warn') => window.Krysion.toast(m, k);
 const NAMES: Record<Kind, string> = { image: 'images', audio: 'audio', video: 'video' };
 const toJob = (r: Row): Job => ({ id: r.path, path: r.path, rel: r.rel, kind: r.kind });
 const todo = (r: Row) => r.status.state === 'waiting' || r.status.state === 'failed';

@@ -1,4 +1,4 @@
-// A segmented control. krysion.js draws the sliding pill.
+// A segmented control. lib/ui.ts draws the sliding pill.
 interface Props<T extends string | number> {
   label: string;
   value: T;

@@ -1,18 +1,9 @@
 // Numbers, sizes, and times the European way:
-// 2,4 MB · 1.234 files · 64% · 19:30. Uses krysion.js's helper.
-
-declare global {
-  interface Window {
-    Krysion: {
-      num(n: number, digits?: number): string;
-      toast(message: string, kind?: 'info' | 'ok' | 'err' | 'warn', opts?: { action?: string; onAction?: () => void; ms?: number; icon?: string }): HTMLElement;
-      enhance(root?: Element | Document): void;
-    };
-  }
-}
+// 2,4 MB · 1.234 files · 64% · 19:30.
+import { formatNumber } from './ui';
 
 export const num = (n: number, digits?: number) =>
-  Number.isFinite(n) ? window.Krysion.num(n, digits) : '–';
+  Number.isFinite(n) ? formatNumber(n, digits) : '–';
 
 /** Sizes as Windows Explorer counts them (1 KB = 1.024 bytes), so they match. */
 export function bytes(n: number): string {

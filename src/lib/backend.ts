@@ -211,7 +211,7 @@ function mockBackend(): Backend {
     },
     existing: async (jobs, s) => (s.saveMode === 'folder' ? jobs.slice(0, 2).map((j) => j.path) : []),
     noBin: async (paths) => paths.filter((p) => p.includes('voice/')),
-    version: async () => '2.1.0',
+    version: async () => '2.1.1',
     onJob: async (fn) => { jobFns.push(fn); return () => jobFns.splice(jobFns.indexOf(fn), 1); },
     onFinished: async (fn) => { doneFns.push(fn); return () => doneFns.splice(doneFns.indexOf(fn), 1); },
     pickFiles: async () => ['C:/VN/assets'],

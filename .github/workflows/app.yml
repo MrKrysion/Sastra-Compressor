@@ -70,7 +70,7 @@ jobs:
           cp ffmpeg-out/ffmpeg.exe src-tauri/binaries/ffmpeg-x86_64-pc-windows-msvc.exe
           mkdir -p src-tauri/licences
           cp ffmpeg-out/licences/* ffmpeg-out/BUILD.txt src-tauri/licences/
-          cp src/design/fonts/OFL.txt src-tauri/licences/Gabarito-OFL.txt
+          cp src/fonts/OFL.txt src-tauri/licences/Gabarito-OFL.txt
           node tools/third-party-licences.mjs
           cp THIRD-PARTY-NOTICES.md THIRD-PARTY-LICENCES.txt LICENSE src-tauri/licences/
 

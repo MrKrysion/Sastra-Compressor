@@ -1,22 +1,5 @@
-/* Sastra Compressor: the Sastra™ palette and the app's layout.
-   Everything else comes from krysion.css. */
+/* Sastra Compressor: the window's layout. Colours and the shared controls are in base.css. */
 
-/* The brand pink is the same everywhere, text included, in both themes. */
-:root, :root[data-theme="dark"] { --accent: #ff006e; --on-accent: #ffffff; --accent-text: var(--accent); }
-:root:not([data-theme="dark"]) {
-	--card: #faf6fb;
-	--soft: rgba(150, 40, 110, .07);
-	--soft-2: rgba(150, 40, 110, .12);
-	--card-hover: color-mix(in srgb, var(--accent) 8%, var(--card));
-}
-:root[data-theme="dark"] {
-	--page: #14101b;
-	--card: #1b1626;
-	--raised: #1b1626;
-	--line: #2a2336;
-	--line-strong: #372e47;
-	--card-hover: color-mix(in srgb, var(--accent) 10%, var(--card));
-}
 ::view-transition-old(root), ::view-transition-new(root) { animation-duration: 250ms; animation-timing-function: ease; }
 
 html, body, #root { height: 100%; }
@@ -67,8 +50,8 @@ input, textarea, .file-dir, .about p { user-select: text; -webkit-user-select: t
    The bar has its own dimming layer so that it can still be dragged through. */
 .modal-backdrop { top: var(--titlebar); }
 .tb-window { position: relative; z-index: 1; }
-.app:has(.modal-backdrop.open) .titlebar::after { content: ""; position: absolute; inset: 0; background: var(--backdrop); pointer-events: none; animation: k-fade var(--t-exit) ease both; }
-.app:has(.modal-backdrop.closing) .titlebar::after { animation: k-fade-out var(--t-exit) ease both; }
+.app:has(.modal-backdrop.open) .titlebar::after { content: ""; position: absolute; inset: 0; background: var(--backdrop); pointer-events: none; animation: fade var(--t-exit) ease both; }
+.app:has(.modal-backdrop.closing) .titlebar::after { animation: fade-out var(--t-exit) ease both; }
 
 .app-name { display: flex; align-items: center; gap: 8px; margin: 0; font-size: 1.25rem; line-height: 1; }
 .app-name > img { height: 24px; width: auto; }
@@ -104,7 +87,7 @@ input, textarea, .file-dir, .about p { user-select: text; -webkit-user-select: t
 .file-dir { color: var(--muted); font-weight: 400; }
 .file-row.running > .file-icon { color: var(--accent); }
 .file-row.done .saved { color: var(--ink-2); font-weight: 700; }
-.file-row.done > .file-done { animation: k-pop-in 260ms var(--ease-spring); }
+.file-row.done > .file-done { animation: pop-in 260ms var(--ease-spring); }
 .file-row > .icon-btn { font-size: 14px; color: var(--muted); }
 @media (hover: hover) { .file-row > .icon-btn:hover { background: var(--soft-2); color: var(--ink); } }
 .file-row > .file-done { width: 28px; font-size: 18px; }

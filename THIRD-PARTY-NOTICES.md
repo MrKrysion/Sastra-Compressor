@@ -33,4 +33,3 @@ The installer is made with NSIS (https://nsis.sourceforge.io), under the zlib/li
 ## Not under the MIT licence
 
 - **The Sastra™ name and logo** are trademarks, and the logo and wordmark files (`src/assets`, `src-tauri/icons`, `src-tauri/installer`) are © Ken “Krysion” Nisaka, all rights reserved. Forks need their own name and logo.
-- **The Krysion design language** (`src/design/krysion.css`, `src/design/krysion.js`) is © Ken “Krysion” Nisaka and is included for this app's use. See `src/design/README.md`.

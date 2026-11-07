@@ -68,11 +68,9 @@ npm run tauri dev
 
 To make an installer locally, run `npm run tauri build`.
 
-### The design language
+### The interface
 
-The app uses the Krysion design language with the Sastra™ palette. `krysion.css`, `krysion.js`, and the Gabarito font live in `src/design/`, so the app works offline and depends on nothing outside this repository. To update the design language, copy the new versions in by hand; `src/design/README.md` lists the two lines of `krysion.css` that change when they're copied.
-
-The app's own styles are in `src/app.css`. The title bar is `src/components/TitleBar.tsx`, with its native side in `src-tauri/src/frame.rs`. `Header.tsx` fills it for this app.
+`src/base.css` holds the colours, type, and shared controls (buttons, menus, dialogs, toasts), and `src/app.css` lays out the window. `src/lib/ui.ts` adds the tooltips, the sliding pill in segmented controls, and the toasts. The Gabarito font is in `src/fonts/`. Everything is bundled, so the app works offline. The title bar is `src/components/TitleBar.tsx`, with its native side in `src-tauri/src/frame.rs`. `Header.tsx` fills it for this app.
 
 ### Releasing
 
@@ -82,4 +80,4 @@ The app's own styles are in `src/app.css`. The title bar is `src/components/Titl
 
 ## 📄 Licence
 
-Sastra™ Compressor is released under the [MIT licence](LICENSE). The Sastra™ name and logo and the Krysion design language files aren't covered by it. The bundled FFmpeg is under the GNU GPL. See [third-party notices](THIRD-PARTY-NOTICES.md) and [ffmpeg/README.md](ffmpeg/README.md).
+Sastra™ Compressor is released under the [MIT licence](LICENSE). The Sastra™ name and logo aren't covered by it. The bundled FFmpeg is under the GNU GPL. See [third-party notices](THIRD-PARTY-NOTICES.md) and [ffmpeg/README.md](ffmpeg/README.md).
