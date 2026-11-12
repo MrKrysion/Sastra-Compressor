@@ -313,24 +313,13 @@ pub fn plain_h264(path: &Path) -> Option<bool> {
     Some([66, 77, 88, 100].contains(&profile))
 }
 
-/// Needs a full ffmpeg and ffprobe (libx264, libx265, AAC and E-AC-3 encoders) to make
-/// the samples and compare against; skipped without them. `cargo test` puts the app's
-/// own ffmpeg first on the PATH, so point `SASTRA_TEST_FFMPEG` at the full one's folder.
+/// Makes its samples and compares against a full ffmpeg (see `crate::tests::tool`).
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::decode::pump;
+    use crate::tests::{have_ffmpeg as ffmpeg, tool as Command};
     use std::path::PathBuf;
-
-    #[allow(non_snake_case)]
-    fn Command(tool: &str) -> std::process::Command {
-        let dir = std::env::var_os("SASTRA_TEST_FFMPEG").map(PathBuf::from).unwrap_or_default();
-        std::process::Command::new(dir.join(tool))
-    }
-
-    fn ffmpeg() -> bool {
-        Command("ffmpeg").args(["-hide_banner", "-filters"]).output().is_ok_and(|o| String::from_utf8_lossy(&o.stdout).contains("testsrc2"))
-    }
 
     fn sample(name: &str, args: &[&str]) -> PathBuf {
         let d = std::env::temp_dir().join(format!("sastra-mf-{}", std::process::id()));

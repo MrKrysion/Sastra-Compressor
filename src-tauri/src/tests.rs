@@ -1,7 +1,8 @@
 //! End-to-end checks of the compressing itself. The ffmpeg tests make their samples
-//! with a full ffmpeg and ffprobe (libx264, libvpx, libopus, the AAC encoder), and are
-//! skipped without one. `cargo test` puts the app's own ffmpeg first on the PATH, so
-//! point `SASTRA_TEST_FFMPEG` at the folder of a full one.
+//! with a full ffmpeg and ffprobe (libx264, libx265, libvpx, libopus, the AAC and
+//! E-AC-3 encoders), and are skipped without one. They use the first on the PATH
+//! outside `target`, where `cargo test` puts the app's own; `SASTRA_TEST_FFMPEG`
+//! names its folder instead.
 
 use crate::formats::Kind;
 use crate::runner::{work, Update};
@@ -70,8 +71,12 @@ fn not_an_image_is_a_clear_error() {
 
 /// The full ffmpeg or ffprobe the samples are made and checked with.
 pub fn tool(name: &str) -> Command {
-    let dir = std::env::var_os("SASTRA_TEST_FFMPEG").map(PathBuf::from).unwrap_or_default();
-    Command::new(dir.join(name))
+    let exe = format!("{name}{}", std::env::consts::EXE_SUFFIX);
+    let dir = std::env::var_os("SASTRA_TEST_FFMPEG").map(PathBuf::from).or_else(|| {
+        let path = std::env::var_os("PATH")?;
+        std::env::split_paths(&path).find(|d| d.join(&exe).is_file() && !d.components().any(|c| c.as_os_str() == "target"))
+    });
+    Command::new(dir.unwrap_or_default().join(exe))
 }
 
 pub fn have_ffmpeg() -> bool {
