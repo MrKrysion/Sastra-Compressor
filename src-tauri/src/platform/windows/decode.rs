@@ -161,6 +161,8 @@ struct MfFrames {
     layout: Layout,
     raw: Vec<u8>,
     picture: Vec<u8>,
+    /// The first picture's time, read ahead by `open_video`; its pixels are in `picture`.
+    first: Option<Option<i64>>,
 }
 
 const VIDEO: u32 = MF_SOURCE_READER_FIRST_VIDEO_STREAM.0 as u32;
@@ -177,16 +179,16 @@ pub fn open_video(path: &Path) -> Result<Box<dyn Frames>, Failure> {
         let fps = pair(&native, &MF_MT_FRAME_RATE).filter(|(n, d)| *n > 0 && *d > 0).unwrap_or((30, 1));
         // Checked against ffmpeg's own rotation: the value is the clockwise turn to make.
         let rotation = native.GetUINT32(&MF_MT_VIDEO_ROTATION).unwrap_or(0) % 360;
-        let info = VideoInfo {
-            width: layout.w,
-            height: layout.h,
-            fps,
-            rotation,
-            full_range: native.GetUINT32(&MF_MT_VIDEO_NOMINAL_RANGE).is_ok_and(|r| r == MFNominalRange_0_255.0 as u32),
-            bt709: native.GetUINT32(&MF_MT_YUV_MATRIX).is_ok_and(|m| m == MFVideoTransferMatrix_BT709.0 as u32),
-            duration: duration(&reader),
-        };
-        Ok(Box::new(MfFrames { reader, info, layout, raw: Vec::new(), picture: Vec::new() }))
+        let info = VideoInfo { width: layout.w, height: layout.h, fps, rotation, full_range: false, bt709: false, duration: duration(&reader) };
+        let mut frames = MfFrames { reader, info, layout, raw: Vec::new(), picture: Vec::new(), first: None };
+        // The decoder states the colours on its output type only once it has decoded a
+        // picture; before that, H.264 in MP4 shows none, on either type.
+        frames.first = Some(frames.read()?);
+        let current = frames.reader.GetCurrentMediaType(VIDEO).map_err(|e| other("read this video", e))?;
+        let colour = |key| current.GetUINT32(key).or_else(|_| native.GetUINT32(key)).ok();
+        frames.info.full_range = colour(&MF_MT_VIDEO_NOMINAL_RANGE) == Some(MFNominalRange_0_255.0 as u32);
+        frames.info.bt709 = colour(&MF_MT_YUV_MATRIX) == Some(MFVideoTransferMatrix_BT709.0 as u32);
+        Ok(Box::new(frames))
     }
 }
 
@@ -196,6 +198,17 @@ impl Frames for MfFrames {
     }
 
     fn next(&mut self) -> Result<Option<(i64, &[u8])>, Failure> {
+        let time = match self.first.take() {
+            Some(time) => time,
+            None => self.read()?,
+        };
+        Ok(time.map(|t| (t, self.picture.as_slice())))
+    }
+}
+
+impl MfFrames {
+    /// Decodes the next picture into `picture` and gives its time; `None` at the end.
+    fn read(&mut self) -> Result<Option<i64>, Failure> {
         loop {
             let (mut flags, mut time, mut sample) = (0u32, 0i64, None);
             // SAFETY: synchronous ReadSample with every out-pointer valid for the call.
@@ -215,16 +228,14 @@ impl Frames for MfFrames {
             }
             if let Some(sample) = sample {
                 self.copy(&sample)?;
-                return Ok(Some((time, &self.picture)));
+                return Ok(Some(time));
             }
             if flags & MF_SOURCE_READERF_ENDOFSTREAM.0 as u32 != 0 {
                 return Ok(None);
             }
         }
     }
-}
 
-impl MfFrames {
     /// Copies the shown part of a decoded NV12 picture into `picture`, tightly packed.
     fn copy(&mut self, sample: &IMFSample) -> Result<(), Failure> {
         let fail = |e| other("read this video", e);
@@ -375,6 +386,30 @@ mod tests {
     }
 
     #[test]
+    fn colours_are_read_from_the_decoded_picture() {
+        if !ffmpeg() {
+            return;
+        }
+        // No B-frames, so Media Foundation starts at the first picture (see `pump`).
+        let x264 = ["-f", "lavfi", "-i", "testsrc2=size=320x180:rate=24:duration=1", "-c:v", "libx264", "-bf", "0", "-pix_fmt", "yuv420p"];
+        let hd = sample("hd.mp4", &[&x264[..], &["-colorspace", "bt709", "-color_primaries", "bt709", "-color_trc", "bt709"]].concat());
+        let full = sample("full.mp4", &[&x264[..], &["-color_range", "pc"]].concat());
+        let plain = sample("plain.mp4", &x264);
+        let read = |p: &Path| {
+            let mut v = open_video(p).unwrap();
+            let i = v.info().clone();
+            // The picture read ahead for the colours still comes out first.
+            let (time, first) = v.next().unwrap().unwrap();
+            assert_eq!(time, 0);
+            assert!(mean_difference(first, &reference(p, "")) < 2.0);
+            (i.bt709, i.full_range)
+        };
+        assert_eq!(read(&hd), (true, false));
+        assert_eq!(read(&full), (false, true));
+        assert_eq!(read(&plain), (false, false));
+    }
+
+    #[test]
     fn high_10_is_read_but_not_plain() {
         if !ffmpeg() {
             return;
@@ -383,8 +418,10 @@ mod tests {
         assert_eq!(plain_h264(&p), Some(false));
         match open_video(&p) {
             // Windows' H.264 decoder doesn't do 10-bit everywhere; it must say so, not fail oddly.
+            // Opening decodes the first picture, so a decoder that can't fails here.
             Err(Failure::NoDecoder) => {}
-            r => assert_eq!(r.map(|v| v.info().width).ok(), Some(320)),
+            Err(Failure::Other(e)) => assert!(e.starts_with("Windows couldn't read this video"), "{e}"),
+            Ok(v) => assert_eq!(v.info().width, 320),
         }
     }
 

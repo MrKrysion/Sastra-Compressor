@@ -131,12 +131,15 @@ fn h264_with_aac_becomes_vp9_and_opus_in_step() {
     }
     let d = temp("h264");
     let src = d.join("scene.mp4");
-    make(&src, &["-f", "lavfi", "-i", "testsrc2=size=640x360:rate=30:duration=3", "-f", "lavfi", "-i", "sine=duration=3", "-c:v", "libx264", "-c:a", "aac", "-shortest"]);
+    let hd = ["-colorspace", "bt709", "-color_primaries", "bt709", "-color_trc", "bt709"];
+    make(&src, &[&["-f", "lavfi", "-i", "testsrc2=size=640x360:rate=30:duration=3", "-f", "lavfi", "-i", "sine=duration=3", "-c:v", "libx264", "-c:a", "aac", "-shortest"][..], &hd].concat());
     let out = d.join("scene.webm");
     let mut seen = vec![];
     let note = ffmpeg::compress(Kind::Video, &src, &out, &settings(), &ffmpeg::inspect(&src), &Arc::new(AtomicBool::new(false)), |p| seen.push(p)).unwrap();
     assert!(note.is_none(), "{note:?}");
     assert_eq!(probe(&out, "stream=codec_name"), "vp9\nopus");
+    // The source's colours carry over, also when its pictures come through the pipe.
+    assert_eq!(probe(&out, "stream=color_range,color_space,color_transfer,color_primaries").lines().next(), Some("tv,bt709,bt709,bt709"));
     // 90 pictures at 30 a second, and sound just as long.
     let times = |stream: &str| -> Vec<f64> {
         let o = tool("ffprobe").args(["-v", "error", "-select_streams", stream, "-show_entries", "packet=pts_time", "-of", "csv=p=0"]).arg(&out).output().unwrap();
