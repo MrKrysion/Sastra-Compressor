@@ -1,6 +1,6 @@
 [package]
 name = "sastra-compressor"
-version = "3.0.0"
+version = "3.0.1"
 description = "Compresses images, audio, and video for the Sastra visual novel engine"
 authors = ["Ken “Krysion” Nisaka"]
 license = "MIT"

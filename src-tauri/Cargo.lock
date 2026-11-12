@@ -3250,7 +3250,7 @@ dependencies = [
 
 [[package]]
 name = "sastra-compressor"
-version = "3.0.0"
+version = "3.0.1"
 dependencies = [
  "image",
  "jxl-oxide",
