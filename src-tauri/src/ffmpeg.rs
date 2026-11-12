@@ -2,6 +2,7 @@
 //! the ones `ffmpeg/test.sh` checks against every accepted format.
 
 use crate::formats::Kind;
+use crate::platform;
 use crate::runner::Note;
 use crate::settings::Settings;
 use std::io::{BufRead, BufReader};
@@ -150,24 +151,11 @@ fn codec_after(line: &str, label: &str) -> Option<String> {
     (!name.is_empty()).then(|| name.to_string())
 }
 
-fn hidden(cmd: &mut Command) {
-    #[cfg(windows)]
-    {
-        use std::os::windows::process::CommandExt;
-        const CREATE_NO_WINDOW: u32 = 0x0800_0000;
-        // x264 takes every core, so let anything else on the PC go first.
-        const BELOW_NORMAL_PRIORITY_CLASS: u32 = 0x0000_4000;
-        cmd.creation_flags(CREATE_NO_WINDOW | BELOW_NORMAL_PRIORITY_CLASS);
-    }
-    #[cfg(not(windows))]
-    let _ = cmd;
-}
-
 /// Reads what's in a file. With no output named, ffmpeg describes the input and stops.
 pub fn inspect(input: &Path) -> InputInfo {
     let mut cmd = Command::new(exe());
     cmd.args(["-hide_banner", "-nostdin", "-i"]).arg(input).stdin(Stdio::null()).stdout(Stdio::null()).stderr(Stdio::piped());
-    hidden(&mut cmd);
+    platform::background(&mut cmd);
     let mut info = InputInfo::default();
     if let Ok(done) = cmd.output() {
         String::from_utf8_lossy(&done.stderr).lines().for_each(|l| info.read_line(l));
@@ -187,10 +175,9 @@ pub fn run(
 ) -> Result<Option<Note>, String> {
     let mut cmd = Command::new(exe());
     cmd.args(args(kind, input, output, s, info.audio_kbps())).stdin(Stdio::null()).stdout(Stdio::piped()).stderr(Stdio::piped());
-    hidden(&mut cmd);
+    platform::background(&mut cmd);
     let mut child = cmd.spawn().map_err(|e| format!("Couldn't start ffmpeg: {e}"))?;
-    #[cfg(windows)]
-    crate::windows::tie_to_app(&child);
+    platform::tie_to_app(&child);
 
     // stderr: the duration (for progress) and the last lines (for errors).
     let duration = Arc::new(Mutex::new(0.0f64));

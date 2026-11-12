@@ -1,15 +1,13 @@
+mod decode;
 mod ffmpeg;
-#[cfg(windows)]
-mod frame;
 mod formats;
 mod image_job;
+mod platform;
 mod runner;
 mod scan;
 mod settings;
 #[cfg(test)]
 mod tests;
-#[cfg(windows)]
-mod windows;
 
 use settings::{Job, Settings};
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -101,35 +99,22 @@ fn quit(app: AppHandle, run: State<Run>) {
     });
 }
 
-/// How the window looks right now, for the title bar. None outside Windows.
+/// How the window looks right now, for the title bar. None where the system draws it.
 #[tauri::command]
 fn frame_state() -> Option<serde_json::Value> {
-    #[cfg(windows)]
-    {
-        serde_json::to_value(frame::state()).ok()
-    }
-    #[cfg(not(windows))]
-    {
-        None
-    }
+    platform::frame_state()
 }
 
 /// Where the title bar's maximise button is, in CSS pixels from the window's right edge.
 #[tauri::command]
 fn set_maximize_button(right: f64, width: f64, height: f64) {
-    #[cfg(windows)]
-    frame::set_button(right, width, height);
-    #[cfg(not(windows))]
-    let _ = (right, width, height);
+    platform::set_maximize_button(right, width, height);
 }
 
 /// Opens the window's system menu, as right-clicking a title bar or pressing Alt+Space does.
 #[tauri::command]
 fn system_menu(app: AppHandle, from_keyboard: bool) {
-    #[cfg(windows)]
-    let _ = app.run_on_main_thread(move || frame::show_system_menu(from_keyboard));
-    #[cfg(not(windows))]
-    let _ = (app, from_keyboard);
+    platform::system_menu(&app, from_keyboard);
 }
 
 /// Lists a run's temporary files; see `runner::sweep`.
@@ -140,18 +125,10 @@ fn journal(app: &AppHandle) -> Option<std::path::PathBuf> {
 }
 
 /// A notification when compressing is done. On Windows the app sends it itself, with
-/// the logo as its picture (see windows.rs); elsewhere the notification plugin does.
+/// the logo as its picture; elsewhere the notification plugin does.
 #[tauri::command]
 fn notify(app: AppHandle, title: String, body: String) -> Result<(), String> {
-    #[cfg(windows)]
-    {
-        windows::notify(&app.config().identifier, &title, &body)
-    }
-    #[cfg(not(windows))]
-    {
-        use tauri_plugin_notification::NotificationExt;
-        app.notification().builder().title(title).body(body).show().map_err(|e| e.to_string())
-    }
+    platform::notify(&app, &title, &body)
 }
 
 #[tauri::command]
@@ -174,12 +151,7 @@ pub fn run() {
         .plugin(tauri_plugin_opener::init())
         .manage(Run::default())
         .setup(|app| {
-            #[cfg(windows)]
-            windows::register_for_notifications(&app.config().identifier);
-            #[cfg(windows)]
-            if let Some(hwnd) = app.get_webview_window("main").and_then(|w| w.hwnd().ok()) {
-                frame::attach(app.handle().clone(), hwnd.0 as isize);
-            }
+            platform::setup(app);
             if let Some(j) = journal(app.handle()) {
                 std::thread::spawn(move || runner::sweep(&j));
             }

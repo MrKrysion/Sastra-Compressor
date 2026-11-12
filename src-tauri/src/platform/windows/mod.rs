@@ -1,5 +1,6 @@
-//! What only Windows needs: the Recycle Bin check, tying ffmpeg to the app's
-//! life, working at a lower priority, and notifications.
+//! The Windows side of `platform`: the Recycle Bin check, tying ffmpeg to the
+//! app's life, working at a lower priority, notifications, the custom title bar
+//! (`frame`), and decoding through Media Foundation (`decode`).
 //!
 //! Windows only shows notifications from apps it knows, so the app introduces
 //! itself on every start: a registry entry under the current user (no
@@ -11,11 +12,17 @@
 //! header gets a fully transparent icon, and the logo is shown instead as the
 //! notification's own picture, which keeps its colours.
 
+mod decode;
+mod frame;
+
+pub use decode::{open_video, plain_h264, read_sound};
 use std::os::windows::ffi::OsStrExt;
 use std::os::windows::io::AsRawHandle;
+use std::os::windows::process::CommandExt;
 use std::path::{Path, PathBuf};
-use std::process::Child;
+use std::process::{Child, Command};
 use std::sync::OnceLock;
+use tauri::{AppHandle, Manager};
 use tauri_winrt_notification::{IconCrop, Toast};
 use windows_sys::Win32::Storage::FileSystem::{GetDriveTypeW, GetVolumeNameForVolumeMountPointW, GetVolumePathNameW};
 use windows_sys::Win32::System::JobObjects::{
@@ -81,6 +88,13 @@ pub fn tie_to_app(child: &Child) {
     }
 }
 
+/// Runs ffmpeg without a console window, behind anything else on the PC: it takes every core.
+pub fn background(cmd: &mut Command) {
+    const CREATE_NO_WINDOW: u32 = 0x0800_0000;
+    const BELOW_NORMAL_PRIORITY_CLASS: u32 = 0x0000_4000;
+    cmd.creation_flags(CREATE_NO_WINDOW | BELOW_NORMAL_PRIORITY_CLASS);
+}
+
 /// So a batch of images leaves room for whatever else is running on the PC.
 pub fn lower_this_thread() {
     // SAFETY: GetCurrentThread returns a stand-in handle that is always valid.
@@ -89,8 +103,8 @@ pub fn lower_this_thread() {
     }
 }
 
-const LOGO: &[u8] = include_bytes!("../icons/notification-logo.png");
-const BLANK: &[u8] = include_bytes!("../icons/notification-blank.png");
+const LOGO: &[u8] = include_bytes!("../../../icons/notification-logo.png");
+const BLANK: &[u8] = include_bytes!("../../../icons/notification-blank.png");
 /// The app's ID before it became com.krysion.sastra.compressor; only test copies used it.
 const OLD_ID: &str = "dev.sastra.compressor";
 
@@ -98,8 +112,25 @@ fn data_dir(app_id: &str) -> Option<PathBuf> {
     std::env::var_os("LOCALAPPDATA").map(|d| PathBuf::from(d).join(app_id))
 }
 
-pub fn register_for_notifications(app_id: &str) {
-    let _ = try_register(app_id);
+/// At start: the app introduces itself for notifications and gets its title bar.
+pub fn setup(app: &tauri::App) {
+    let _ = try_register(&app.config().identifier);
+    if let Some(hwnd) = app.get_webview_window("main").and_then(|w| w.hwnd().ok()) {
+        frame::attach(app.handle().clone(), hwnd.0 as isize);
+    }
+}
+
+/// How the window looks right now, for the title bar.
+pub fn frame_state() -> Option<serde_json::Value> {
+    serde_json::to_value(frame::state()).ok()
+}
+
+pub fn set_maximize_button(right: f64, width: f64, height: f64) {
+    frame::set_button(right, width, height);
+}
+
+pub fn system_menu(app: &AppHandle, from_keyboard: bool) {
+    let _ = app.run_on_main_thread(move || frame::show_system_menu(from_keyboard));
 }
 
 fn try_register(app_id: &str) -> std::io::Result<()> {
@@ -126,7 +157,8 @@ fn try_register(app_id: &str) -> std::io::Result<()> {
 }
 
 /// Shows a notification with the logo as its picture.
-pub fn notify(app_id: &str, title: &str, body: &str) -> Result<(), String> {
+pub fn notify(app: &AppHandle, title: &str, body: &str) -> Result<(), String> {
+    let app_id = app.config().identifier.as_str();
     let dir = data_dir(app_id).ok_or("no LOCALAPPDATA")?;
     std::fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
     let logo = dir.join("notification-logo.png");

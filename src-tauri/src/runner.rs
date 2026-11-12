@@ -78,8 +78,7 @@ pub fn work(jobs: Vec<Job>, settings: &Settings, cancel: &Arc<AtomicBool>, emit:
         for _ in 0..cores.min(light.len()) {
             scope.spawn(|| {
                 // Every core is busy, so leave room for whatever else is running on the PC.
-                #[cfg(windows)]
-                crate::windows::lower_this_thread();
+                crate::platform::lower_this_thread();
                 loop {
                     let i = next.fetch_add(1, Ordering::Relaxed);
                     let Some((job, out)) = light.get(i) else { break };
@@ -270,15 +269,7 @@ fn dispose(input: &Path, s: &Settings) -> Result<(), String> {
 
 /// Windows deletes a file for good, without a word, when the Recycle Bin can't take it.
 pub fn can_recycle(path: &Path) -> bool {
-    #[cfg(windows)]
-    {
-        crate::windows::can_recycle(path)
-    }
-    #[cfg(not(windows))]
-    {
-        let _ = path;
-        true
-    }
+    crate::platform::can_recycle(path)
 }
 
 /// `school.webp` is written as `school.webp.sastra-part` until it is finished.
