@@ -9,9 +9,10 @@ const REPO = 'https://github.com/MrKrysion/Sastra-Compressor';
 const CREDITS: [string, string, string][] = [
   ['FFmpeg', 'GNU LGPL 2.1 or later', 'https://ffmpeg.org'],
   ['libvpx', 'BSD 3-clause', 'https://www.webmproject.org'],
-  ['Opus', 'BSD', 'https://opus-codec.org'],
-  ['dav1d', 'BSD', 'https://code.videolan.org/videolan/dav1d'],
+  ['Opus', 'BSD 3-clause', 'https://opus-codec.org'],
+  ['dav1d', 'BSD 2-clause', 'https://code.videolan.org/videolan/dav1d'],
   ['libwebp', 'BSD 3-clause', 'https://chromium.googlesource.com/webm/libwebp'],
+  ['jxl-oxide', 'MIT or Apache 2.0', 'https://github.com/tirr-c/jxl-oxide'],
   ['Tauri', 'MIT or Apache 2.0', 'https://tauri.app'],
   ['React', 'MIT', 'https://react.dev'],
   ['Gabarito', 'SIL Open Font Licence 1.1', 'https://github.com/naipefoundry/gabarito'],

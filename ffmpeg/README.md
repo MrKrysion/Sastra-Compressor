@@ -41,4 +41,4 @@ The result is in `ffmpeg/work/out`, with `BUILD.txt` (versions and the full conf
 
 ## Licences
 
-This build is licensed under the **GNU LGPL** (version 2.1 or later). Its source code, licences, and build recipe ship with every release of the app. The app itself stays MIT-licensed, and runs ffmpeg as a separate program. libvpx, Opus, and dav1d are under BSD licences.
+This build is licensed under the **GNU LGPL** (version 2.1 or later). Its source code, licences, and build recipe ship with every release of the app. The app itself stays MIT-licensed, and runs ffmpeg as a separate program. libvpx and Opus are under the 3-clause BSD licence, dav1d under the 2-clause one.
