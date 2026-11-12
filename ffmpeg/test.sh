@@ -74,6 +74,7 @@ gen "${A[@]}" -c:a aac a.aac
 gen "${A[@]}" -c:a pcm_s16be a.aiff
 gen "${A[@]}" -c:a pcm_s24be a.aif
 gen "${A6[@]}" -c:a pcm_s16le surround.wav
+gen -f lavfi -i "sine=frequency=440:duration=2,aformat=channel_layouts=5.1(side)" -c:a pcm_s16le side.wav
 
 fail=0
 check() { # name expected-codecs output
@@ -83,12 +84,13 @@ check() { # name expected-codecs output
 }
 run() { "${RUN[@]}" "$EXE" -hide_banner -nostdin -nostats -loglevel error -y "$@" 2>&1 | tail -3; }
 # What the app writes for a video, into VIDEO. 0 = keep the width (here: 322 → 322,
-# height made even). The sound is input 0, or 1 when the frames come in through a pipe.
+# height made even). Surround sound becomes stereo: libopus refuses some layouts, and
+# games don't need it. The sound is input 0, or 1 when the frames come in through a pipe.
 video() { # width sound-input
   VIDEO=(-map 0:v:0 -map "$2:a:0?" -sn -dn -map_chapters -1
     -vf "scale='trunc(min($1,iw)/2)*2':-2,format=yuv420p"
     -c:v libvpx-vp9 -crf 33 -b:v 0 -deadline good -cpu-used 4 -row-mt 1
-    -c:a libopus -b:a 96k -vbr on -cues_to_front 1 -f webm)
+    -af "aformat=channel_layouts=mono|stereo" -c:a libopus -b:a 96k -vbr on -cues_to_front 1 -f webm)
 }
 
 echo "Checking that no patented codec is built in"
