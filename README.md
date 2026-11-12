@@ -26,9 +26,10 @@ The [Sastra™ visual novel engine](https://github.com/MrKrysion/Sastra) runs in
 
 ### What it does
 
-* **🖼️ Images → WebP.** PNG, JPEG, WebP, BMP, TIFF, and GIF. Transparency and colour profiles are kept, animated images stay animated, photos are turned upright, and wide images can be shrunk to 1920 or 1280 px.
-* **🎵 Audio → Opus in Ogg.** WAV, FLAC, MP3, OGG, Opus, M4A, AAC, AIFF, and W64, at 96 kbit/s for music or 64 kbit/s for voice and sound effects.
-* **🎥 Video → VP9 and Opus in WebM.** MP4, MOV, MKV, WebM, and AVI, with the index at the front so browsers can start playing straight away, phone videos turned upright, and an optional maximum frame rate. H.264, HEVC, and AAC are read through Windows' own decoders; ProRes and DNxHD aren't read, so export those as H.264.
+* **🖼️ Images → WebP.** PNG, JPEG, WebP, GIF, BMP, TIFF, TGA, AVIF, JPEG XL, HEIF and HEIC, and the flattened picture in Photoshop, Krita, and OpenRaster files. Transparency and colour profiles are kept, animated images stay animated, photos are turned upright, and wide images can be shrunk to 1920 or 1280 px.
+* **🎵 Audio → Opus in Ogg.** WAV, MP3, FLAC, OGG, Opus, M4A, AAC, AIFF, WMA, WavPack, Monkey's Audio, and more than a dozen others, at 96 kbit/s for music or 64 kbit/s for voice and sound effects. Surround sound stays surround.
+* **🎥 Video → VP9 and Opus in WebM.** MP4, MOV, MKV, WebM, AVI, WMV, MPEG and DVD files, camera AVCHD, 3GP, and Ogg Theora, with the index at the front so browsers can start playing straight away, phone videos turned upright, and an optional maximum frame rate. H.264, HEVC, VC-1, AAC, WMA Pro, and AMR are read through Windows' own decoders; ProRes and DNxHD aren't read, so export those as H.264.
+* **🔎 Every format at a glance.** "Will my file work?" on the home screen lists everything this computer reads, with a search for any file type.
 * **📁 Whole folders.** Drop a folder and everything inside is added, subfolders included.
 * **💾 Three ways to save.** Next to the originals (as `name_compressed`), into another folder with the same names and subfolders, or in place of the originals (which go to the Recycle Bin, after asking first; on drives with no Bin, such as USB drives, the app warns that they are deleted for good).
 * **📊 Live progress.** Each file shows its progress and how much smaller it became; the taskbar shows overall progress, and a Windows notification tells you when everything is done.

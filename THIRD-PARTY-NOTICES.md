@@ -18,6 +18,8 @@ Every Rust crate and npm package in the app, with its full licence text, is list
 | Tauri | MIT or Apache 2.0 | https://tauri.app |
 | React | MIT | https://react.dev |
 | image (Rust crate) | MIT or Apache 2.0 | https://github.com/image-rs/image |
+| jxl-oxide (JPEG XL) | MIT or Apache 2.0 | https://github.com/tirr-c/jxl-oxide |
+| zip (Rust crate, for Krita and OpenRaster files) | MIT | https://github.com/zip-rs/zip2 |
 | libwebp, through the webp crate | BSD 3-clause, with an additional patent grant | https://chromium.googlesource.com/webm/libwebp |
 | Gabarito font | SIL Open Font Licence 1.1 (`licences/Gabarito-OFL.txt`) | https://github.com/naipefoundry/gabarito |
 | Font Awesome Free 7.3.1 | Icons CC BY 4.0, fonts SIL OFL 1.1, code MIT | https://fontawesome.com/license/free |

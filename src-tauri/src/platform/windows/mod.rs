@@ -14,8 +14,11 @@
 
 mod decode;
 mod frame;
+mod picture;
 
 pub use decode::{open_video, plain_h264, read_sound};
+pub use picture::read_picture;
+use crate::formats::{Format, Kind};
 use std::os::windows::ffi::OsStrExt;
 use std::os::windows::io::AsRawHandle;
 use std::os::windows::process::CommandExt;
@@ -32,6 +35,18 @@ use windows_sys::Win32::System::JobObjects::{
 use windows_sys::Win32::System::Threading::{GetCurrentThread, SetThreadPriority, THREAD_PRIORITY_BELOW_NORMAL};
 use winreg::enums::HKEY_CURRENT_USER;
 use winreg::RegKey;
+
+/// What only Windows reads here, through its own decoders.
+pub const FORMATS: &[Format] = &[Format {
+    kind: Kind::Image,
+    name: "HEIF and HEIC",
+    ext: &["heic", "heif"],
+    common: Some("HEIC"),
+    note: Some("Needs Microsoft’s HEIF and HEVC extensions"),
+}];
+
+pub const VIDEO_NOTE: Option<&str> =
+    Some("HEVC (H.265) video needs Microsoft’s HEVC Video Extensions. ProRes and DNxHD aren’t supported: export those as H.264.");
 
 /// Whether Windows would put this file in the Recycle Bin. When it can't, it deletes
 /// the file for good and reports success, which is what happens on a USB stick.

@@ -7,6 +7,7 @@ import { Header } from './components/Header';
 import { FileList } from './components/FileList';
 import { SettingsPanel } from './components/SettingsPanel';
 import { About } from './components/About';
+import { FormatsDialog, KINDS } from './components/FormatsDialog';
 import { Modal, closeModal } from './components/Modal';
 import { toast } from './lib/ui';
 
@@ -32,6 +33,7 @@ export default function App() {
   const [outputs, setOutputs] = useState<Record<string, string>>({});
   const [over, setOver] = useState(false);
   const [about, setAbout] = useState(false);
+  const [formatList, setFormatList] = useState<Kind | 'all' | null>(null);
   const [confirm, setConfirm] = useState<'quit' | 'replace' | 'no-bin' | 'existing' | null>(null);
   // How many originals can't go to the Bin, and which files would be overwritten: for the dialogs.
   const [noBin, setNoBin] = useState(0);
@@ -314,7 +316,7 @@ export default function App() {
   const kindsAdded = (Object.keys(counts) as Kind[]).filter((k) => counts[k]).map((k) => NAMES[k]);
   const clear = () => { setRows([]); setPhase('idle'); };
   // While a dialog is open, Tab and clicks stay inside it; the window controls still work.
-  const dialogOpen = about || !!confirm || !!found;
+  const dialogOpen = about || !!formatList || !!confirm || !!found;
 
   return (
     <div className="app">
@@ -334,13 +336,26 @@ export default function App() {
                   <i className="fa-solid fa-folder-plus" aria-hidden="true" />Add a folder
                 </button>
               </div>
-              {formats && (
+              {formats && (<>
                 <ul className="format-groups" aria-label="Supported formats">
-                  <FormatGroup icon="fa-image" title="Images" formats={formats.image.filter((x) => !['jpeg', 'tif'].includes(x))} />
-                  <FormatGroup icon="fa-music" title="Audio" formats={formats.audio.filter((x) => !['oga', 'aif'].includes(x))} />
-                  <FormatGroup icon="fa-film" title="Video" formats={formats.video.filter((x) => x !== 'm4v')} />
+                  {KINDS.map((k) => {
+                    const all = formats.list.filter((f) => f.kind === k.kind);
+                    const common = all.flatMap((f) => (f.common ? [f.common] : []));
+                    return (
+                      <li key={k.kind}>
+                        <button type="button" className="format-group" onClick={() => setFormatList(k.kind)}>
+                          <h3><i className={`fa-solid ${k.icon}`} aria-hidden="true" />{k.title}</h3>
+                          <p>{common.join(', ')}, and {all.length - common.length} more</p>
+                          <span className="becomes"><i className="fa-solid fa-arrow-right" aria-hidden="true" />{k.becomes}</span>
+                        </button>
+                      </li>
+                    );
+                  })}
                 </ul>
-              )}
+                <button type="button" className="btn btn-text btn-sm every-format" onClick={() => setFormatList('all')}>
+                  <i className="fa-solid fa-magnifying-glass" aria-hidden="true" />Will my file work?
+                </button>
+              </>)}
             </div>
           ) : (
             <>
@@ -440,6 +455,7 @@ export default function App() {
       )}
 
       {about && <About onClose={() => setAbout(false)} />}
+      {formatList && formats && <FormatsDialog formats={formats} start={formatList} onClose={() => setFormatList(null)} />}
 
       {confirm === 'replace' && (
         <Modal
@@ -544,13 +560,4 @@ export default function App() {
   );
 }
 
-function FormatGroup({ icon, title, formats }: { icon: string; title: string; formats: string[] }) {
-  return (
-    <li className="format-group">
-      <h3><i className={`fa-solid ${icon}`} aria-hidden="true" />{title}</h3>
-      <p>{formats.map((f) => <span key={f}>{up(f)}</span>)}</p>
-    </li>
-  );
-}
 
-const up = (s: string) => ({ webp: 'WebP', webm: 'WebM', opus: 'Opus' } as Record<string, string>)[s] ?? s.toUpperCase();

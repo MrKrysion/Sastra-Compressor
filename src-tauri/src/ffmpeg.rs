@@ -2,7 +2,7 @@
 //! in Ogg. The arguments here are the ones `ffmpeg/test.sh` checks against every
 //! accepted format.
 //!
-//! ffmpeg has no decoders for the patented formats (H.264, HEVC, AAC, E-AC-3). When
+//! ffmpeg has no decoders for the patented formats (H.264, HEVC, VC-1, AAC, WMA Pro, AMR). When
 //! a file needs one, the operating system decodes it (`crate::decode`): the pictures
 //! come in on ffmpeg's stdin and the sound as a WAV file. A build of ffmpeg that can
 //! decode them itself, such as the system's own on Linux, reads them directly.
@@ -319,6 +319,45 @@ pub fn inspect(input: &Path) -> InputInfo {
         info.plain_picture = platform::plain_h264(input) == Some(true);
     }
     info
+}
+
+/// Reads a still picture ffmpeg understands (AVIF) as RGBA, upright. An AVIF keeps
+/// its transparency as a second picture, which `alphamerge` puts back.
+pub fn read_picture(input: &Path) -> Result<image::DynamicImage, String> {
+    let unreadable = || "Sastra Compressor can't read this picture.".to_string();
+    let mut cmd = Command::new(exe());
+    cmd.args(["-hide_banner", "-nostdin", "-i"]).arg(input).stdin(Stdio::null()).stdout(Stdio::null()).stderr(Stdio::piped());
+    platform::background(&mut cmd);
+    let log = cmd.output().map(|o| String::from_utf8_lossy(&o.stderr).into_owned()).unwrap_or_default();
+    let described = log.split("Stream mapping:").next().unwrap_or_default();
+    let pictures: Vec<&str> = described.lines().filter(|l| l.contains(": Video:")).collect();
+    // "…, 64x48 [SAR 1:1 …], …": the first part shaped like a size. Codec tags such as
+    // "0x31307661" are shaped the same way, but a size never starts with 0.
+    let size = |p: &str| {
+        let (a, b) = p.split_once('x')?;
+        (!a.starts_with('0')).then_some(())?;
+        Some((a.parse::<u32>().ok()?, b.parse::<u32>().ok()?))
+    };
+    let (mut w, mut h) = pictures
+        .first()
+        .and_then(|l| l.split([',', ' ']).find_map(size))
+        .ok_or_else(unreadable)?;
+    // ffmpeg turns it upright, which swaps the sides of a quarter turn.
+    if described.lines().any(|l| l.contains("rotation of 90") || l.contains("rotation of -90")) {
+        (w, h) = (h, w);
+    }
+    let mut cmd = Command::new(exe());
+    cmd.args(["-hide_banner", "-nostdin", "-loglevel", "error", "-i"]).arg(input);
+    if pictures.len() > 1 {
+        cmd.args(["-filter_complex", "[0:v:0][0:v:1]alphamerge"]);
+    } else {
+        cmd.args(["-map", "0:v:0"]);
+    }
+    cmd.args(["-frames:v", "1", "-f", "rawvideo", "-pix_fmt", "rgba", "-"]).stdin(Stdio::null()).stdout(Stdio::piped()).stderr(Stdio::piped());
+    platform::background(&mut cmd);
+    let out = cmd.output().map_err(|e| format!("Couldn't start ffmpeg: {e}"))?;
+    let rgba = image::RgbaImage::from_raw(w, h, out.stdout).ok_or_else(|| format!("{}\n{}", unreadable(), String::from_utf8_lossy(&out.stderr).trim()))?;
+    Ok(image::DynamicImage::ImageRgba8(rgba))
 }
 
 /// Feeds the piped pictures to ffmpeg, passing on its progress between pictures:

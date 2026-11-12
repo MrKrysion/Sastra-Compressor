@@ -1,5 +1,5 @@
-//! Decoding through Media Foundation's Source Reader, whose H.264, HEVC, AAC, and
-//! E-AC-3 decoders Microsoft licenses (see `crate::decode`).
+//! Decoding through Media Foundation's Source Reader, whose H.264, HEVC, VC-1, AAC,
+//! WMA, and AMR decoders Microsoft licenses (see `crate::decode`).
 //!
 //! Media Foundation's DLLs are loaded when first needed, not linked: Windows N
 //! editions lack them until the Media Feature Pack is installed, and a linked DLL
@@ -442,16 +442,13 @@ mod tests {
         assert!(!read_sound(&p, &p.with_extension("wav"), &AtomicBool::new(false)).unwrap());
     }
 
-    /// HEVC and E-AC-3 need decoders not every PC has; either they work or the app says what's missing.
+    /// HEVC needs an extension not every PC has; either it works or the app says what's missing.
     #[test]
-    fn hevc_and_eac3_work_or_say_what_is_missing() {
+    fn hevc_works_or_says_what_is_missing() {
         if !ffmpeg() {
             return;
         }
-        let p = sample("g.mp4", &[
-            "-f", "lavfi", "-i", "testsrc2=size=640x360:rate=25:duration=1", "-f", "lavfi", "-i", "sine=duration=1",
-            "-c:v", "libx265", "-x265-params", "log-level=error", "-tag:v", "hvc1", "-c:a", "eac3", "-shortest",
-        ]);
+        let p = sample("g.mp4", &["-f", "lavfi", "-i", "testsrc2=size=640x360:rate=25:duration=1", "-c:v", "libx265", "-x265-params", "log-level=error", "-tag:v", "hvc1"]);
         match open_video(&p) {
             Ok(mut v) => {
                 let (_, first) = v.next().unwrap().unwrap();
@@ -462,13 +459,18 @@ mod tests {
             Err(Failure::NoDecoder) => println!("HEVC: no decoder on this PC"),
             Err(Failure::Other(e)) => panic!("{e}"),
         }
-        match read_sound(&p, &p.with_extension("wav"), &AtomicBool::new(false)) {
-            Ok(had) => {
-                assert!(had);
-                println!("E-AC-3: read by Windows");
-            }
-            Err(Failure::NoDecoder) => println!("E-AC-3: no decoder on this PC"),
-            Err(Failure::Other(e)) => panic!("{e}"),
+    }
+
+    #[test]
+    fn amr_recordings_are_read_in_3gp_and_on_their_own() {
+        if !ffmpeg() {
+            return;
+        }
+        for (name, container) in [("h.3ga", "3gp"), ("h.amr", "amr")] {
+            let p = sample(name, &["-f", "lavfi", "-i", "sine=duration=2", "-c:a", "libopencore_amrnb", "-ar", "8000", "-ac", "1", "-f", container]);
+            let wav = p.with_extension("wav");
+            assert!(read_sound(&p, &wav, &AtomicBool::new(false)).unwrap(), "{name}");
+            assert!(std::fs::metadata(&wav).unwrap().len() > 8000 * 4, "{name}: about 2 s of sound");
         }
     }
 }

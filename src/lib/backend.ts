@@ -2,7 +2,7 @@
 // Rust side; in a plain browser (`npm run dev`) a stand-in fakes the files
 // and the compressing, so the design can be worked on without building.
 import { invoke, isTauri } from '@tauri-apps/api/core';
-import type { Formats, JobUpdate, Kind, RunChoices, ScanResult, Settings } from './types';
+import type { FormatInfo, Formats, JobUpdate, Kind, RunChoices, ScanResult, Settings } from './types';
 
 export const inApp = isTauri();
 
@@ -135,10 +135,21 @@ async function tauriBackend(): Promise<Backend> {
 
 /* ---------- the browser stand-in ---------- */
 function mockBackend(): Backend {
+  // A shortened copy of src-tauri/src/formats.rs, as Windows sees it.
+  const f = (kind: Kind, name: string, ext: string, common: string | null = null, note: string | null = null): FormatInfo => ({ kind, name, ext: ext.split(' '), common, note });
+  const list: FormatInfo[] = [
+    f('image', 'PNG', 'png', 'PNG'), f('image', 'JPEG', 'jpg jpeg', 'JPEG'), f('image', 'WebP', 'webp', 'WebP'), f('image', 'Photoshop', 'psd', 'PSD'),
+    f('image', 'GIF', 'gif'), f('image', 'AVIF', 'avif'), f('image', 'JPEG XL', 'jxl'),
+    f('image', 'HEIF and HEIC', 'heic heif', 'HEIC', 'Needs Microsoft’s HEIF and HEVC extensions'),
+    f('audio', 'WAV', 'wav', 'WAV'), f('audio', 'MP3', 'mp3', 'MP3'), f('audio', 'FLAC', 'flac', 'FLAC'), f('audio', 'Ogg Vorbis and Opus', 'ogg oga opus', 'OGG'),
+    f('audio', 'AAC and Apple Lossless', 'm4a m4b aac', 'M4A'), f('audio', 'Windows Media Audio', 'wma'), f('audio', 'AMR', 'amr 3ga'),
+    f('video', 'MP4', 'mp4 m4v', 'MP4'), f('video', 'QuickTime', 'mov', 'MOV'), f('video', 'Matroska', 'mkv', 'MKV'), f('video', 'WebM', 'webm', 'WebM'),
+    f('video', 'AVI', 'avi', 'AVI'), f('video', 'Windows Media Video', 'wmv asf'), f('video', 'AVCHD and MPEG-TS', 'mts m2ts ts'),
+  ];
+  const ext = (k: Kind) => list.filter((x) => x.kind === k).flatMap((x) => x.ext);
   const formats: Formats = {
-    image: ['png', 'jpg', 'jpeg', 'webp', 'bmp', 'tif', 'tiff', 'gif'],
-    audio: ['wav', 'flac', 'mp3', 'ogg', 'oga', 'opus', 'm4a', 'aac', 'aif', 'aiff', 'w64'],
-    video: ['mp4', 'm4v', 'mov', 'mkv', 'webm', 'avi'],
+    image: ext('image'), audio: ext('audio'), video: ext('video'), list,
+    videoNote: 'HEVC (H.265) video needs Microsoft’s HEVC Video Extensions. ProRes and DNxHD aren’t supported: export those as H.264.',
   };
   const samples: [string, Kind, number][] = [
     ['bg/school_hallway.png', 'image', 6_811_000],

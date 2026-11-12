@@ -19,4 +19,4 @@ DAV1D_URL="https://downloads.videolan.org/pub/videolan/dav1d/${DAV1D_VERSION}/da
 DAV1D_SHA256=686616b7c69eb88d44459391ab25cac13b6647a3b288835c5784e71c1514a5c5
 
 # Bump this when the build changes but the versions above don't.
-SASTRA_BUILD=2
+SASTRA_BUILD=3

@@ -3,10 +3,16 @@
 //! supported here yet: on macOS it will go through AVFoundation.
 
 use crate::decode::{Failure, Frames};
+use crate::formats::Format;
 use std::path::Path;
 use std::process::{Child, Command};
 use std::sync::atomic::AtomicBool;
 use tauri::AppHandle;
+
+/// Nothing extra yet: HEIC and ProRes come with decoding through the system's own frameworks.
+pub const FORMATS: &[Format] = &[];
+
+pub const VIDEO_NOTE: Option<&str> = Some("H.264, HEVC, and ProRes video can’t be read here yet: export them as VP9 or AV1.");
 
 /// The Trash takes files from any drive.
 pub fn can_recycle(_path: &Path) -> bool {
@@ -45,4 +51,8 @@ pub fn read_sound(_path: &Path, _wav: &Path, _cancel: &AtomicBool) -> Result<boo
 
 pub fn plain_h264(_path: &Path) -> Option<bool> {
     None
+}
+
+pub fn read_picture(_path: &Path) -> Result<(image::DynamicImage, Option<Vec<u8>>), Failure> {
+    Err(Failure::NoDecoder)
 }

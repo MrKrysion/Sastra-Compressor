@@ -316,14 +316,60 @@ fn low_bitrate_sound_stays_low() {
 }
 
 #[test]
-fn every_listed_image_format_compresses() {
+fn every_image_format_the_image_library_writes_compresses() {
     let d = temp("formats");
-    for ext in crate::formats::IMAGE {
+    for ext in ["png", "jpg", "jpeg", "webp", "bmp", "tif", "tiff", "gif", "tga"] {
         let src = d.join(format!("a.{ext}"));
         image::RgbImage::from_fn(32, 32, |x, y| image::Rgb([(x * 7) as u8, (y * 7) as u8, 90])).save(&src).unwrap_or_else(|e| panic!("{ext}: {e}"));
         let out = d.join(format!("a-{ext}.webp"));
         image_job::compress(&src, &out, 75.0, 0).unwrap_or_else(|e| panic!("{ext}: {e}"));
         assert_eq!(image::open(&out).unwrap().to_rgb8().dimensions(), (32, 32), "{ext}");
+    }
+}
+
+#[test]
+fn krita_and_openraster_files_give_their_flattened_picture() {
+    use std::io::Write;
+    let d = temp("kra");
+    let png = d.join("merged.png");
+    image::RgbaImage::from_fn(40, 20, |x, _| image::Rgba([255, 0, 110, if x < 20 { 0 } else { 255 }])).save(&png).unwrap();
+    for ext in ["kra", "ora"] {
+        let src = d.join(format!("art.{ext}"));
+        let mut zip = zip::ZipWriter::new(std::fs::File::create(&src).unwrap());
+        let stored = zip::write::SimpleFileOptions::default().compression_method(zip::CompressionMethod::Stored);
+        zip.start_file("mimetype", stored).unwrap();
+        zip.write_all(b"image/openraster").unwrap();
+        zip.start_file("mergedimage.png", stored).unwrap();
+        zip.write_all(&std::fs::read(&png).unwrap()).unwrap();
+        zip.finish().unwrap();
+        let out = d.join(format!("art-{ext}.webp"));
+        image_job::compress(&src, &out, 75.0, 0).unwrap();
+        let back = image::open(&out).unwrap().to_rgba8();
+        assert_eq!(back.dimensions(), (40, 20), "{ext}");
+        assert_eq!((back.get_pixel(5, 5).0[3], back.get_pixel(35, 5).0[3]), (0, 255), "{ext} keeps its transparency");
+    }
+}
+
+/// JPEG XL is read by jxl-oxide, AVIF by the app's ffmpeg; the samples come from a full ffmpeg.
+#[test]
+fn jpeg_xl_and_avif_pictures_become_webp() {
+    if !have_ffmpeg() {
+        return;
+    }
+    let d = temp("jxl");
+    for (name, codec) in [("pic.jxl", "libjxl"), ("pic.avif", "libaom-av1")] {
+        let src = d.join(name);
+        let made = tool("ffmpeg")
+            .args(["-hide_banner", "-loglevel", "error", "-y", "-f", "lavfi", "-i", "testsrc2=size=96x64", "-frames:v", "1", "-c:v", codec])
+            .arg(&src)
+            .status()
+            .is_ok_and(|s| s.success());
+        if !made {
+            continue; // this ffmpeg has no such encoder
+        }
+        let out = d.join(format!("{name}.webp"));
+        image_job::compress(&src, &out, 75.0, 0).unwrap_or_else(|e| panic!("{name}: {e}"));
+        assert_eq!(image::open(&out).unwrap().to_rgb8().dimensions(), (96, 64), "{name}");
     }
 }
 

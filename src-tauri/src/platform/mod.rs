@@ -3,7 +3,8 @@
 //!
 //! - `can_recycle`, `background`, `tie_to_app`, `lower_this_thread`: files and processes.
 //! - `setup`, `notify`, `frame_state`, `set_maximize_button`, `system_menu`: the window.
-//! - `open_video`, `read_sound`, `plain_h264`: decoding the patented formats (see `crate::decode`).
+//! - `open_video`, `read_sound`, `plain_h264`, `read_picture`: decoding the patented formats (see `crate::decode`).
+//! - `FORMATS`, `VIDEO_NOTE`: what only this system reads, for `crate::formats`.
 //!
 //! `unix` covers macOS and Linux (where the tests run) until macOS gets its own.
 

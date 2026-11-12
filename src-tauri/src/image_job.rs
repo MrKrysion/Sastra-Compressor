@@ -1,6 +1,8 @@
-//! Images are compressed in-process (no ffmpeg): decode, turn upright,
-//! shrink if asked, and encode as lossy WebP. Animated GIF, PNG, and WebP
-//! become animated WebP, which every current browser plays.
+//! Images are compressed in-process: decode, turn upright, shrink if asked, and
+//! encode as lossy WebP. Animated GIF, PNG, and WebP become animated WebP, which
+//! every current browser plays. Most formats are read by the `image` crate; JPEG XL
+//! by `jxl-oxide`, Photoshop by `crate::psd`, Krita and OpenRaster from the
+//! flattened PNG inside them, AVIF by the bundled ffmpeg, and HEIC by the system.
 
 use crate::runner::Note;
 use image::codecs::gif::GifDecoder;
@@ -44,21 +46,57 @@ fn is_animated_format(input: &Path) -> Result<bool, String> {
     })
 }
 
-fn compress_still(input: &Path, output: &Path, quality: f32, max_width: u32) -> Result<Option<Note>, String> {
-    let mut reader = ImageReader::open(input)
-        .map_err(|e| format!("Couldn't open the file: {e}"))?
-        .with_guessed_format()
-        .map_err(|e| format!("Couldn't read the file: {e}"))?;
-    // A 16.383 px square takes about 1 GB; the library's 512 MB default stops well short of that.
-    let mut limits = Limits::default();
-    limits.max_alloc = Some(4 * GIB);
-    reader.limits(limits);
-    let mut decoder = reader.into_decoder().map_err(read_error)?;
-    let profile = decoder.icc_profile().ok().flatten().filter(|p| worth_keeping(p));
+/// The picture, upright, and its colour profile if one is worth keeping.
+fn read_still(input: &Path) -> Result<(DynamicImage, Option<Vec<u8>>), String> {
+    let ext = input.extension().map(|e| e.to_string_lossy().to_ascii_lowercase()).unwrap_or_default();
+    let bytes = || std::fs::read(input).map_err(|e| format!("Couldn't open the file: {e}"));
+    let (img, profile) = match ext.as_str() {
+        "jxl" => {
+            let file = BufReader::new(File::open(input).map_err(|e| format!("Couldn't open the file: {e}"))?);
+            decoded(jxl_oxide::integration::JxlDecoder::new(file).map_err(read_error)?)?
+        }
+        "psd" => crate::psd::read(&bytes()?)?,
+        "kra" | "ora" => decoded(PngDecoder::new(std::io::Cursor::new(merged_png(&bytes()?)?)).map_err(read_error)?)?,
+        "avif" => (crate::ffmpeg::read_picture(input)?, None),
+        "heic" | "heif" => crate::platform::read_picture(input).map_err(|f| f.explain("hevc"))?,
+        _ => {
+            let mut reader = ImageReader::open(input)
+                .map_err(|e| format!("Couldn't open the file: {e}"))?
+                .with_guessed_format()
+                .map_err(|e| format!("Couldn't read the file: {e}"))?;
+            // A 16.383 px square takes about 1 GB; the library's 512 MB default stops well short of that.
+            let mut limits = Limits::default();
+            limits.max_alloc = Some(4 * GIB);
+            reader.limits(limits);
+            decoded(reader.into_decoder().map_err(read_error)?)?
+        }
+    };
+    Ok((img, profile.filter(|p| worth_keeping(p))))
+}
+
+fn decoded(mut decoder: impl ImageDecoder) -> Result<(DynamicImage, Option<Vec<u8>>), String> {
+    let profile = decoder.icc_profile().ok().flatten();
     let orientation = decoder.orientation().unwrap_or(image::metadata::Orientation::NoTransforms);
     let mut img = DynamicImage::from_decoder(decoder).map_err(read_error)?;
     // Photos from phones are often stored sideways with a note to turn them.
     img.apply_orientation(orientation);
+    Ok((img, profile))
+}
+
+/// Krita and OpenRaster files are zip archives that keep a flattened copy of the
+/// picture as `mergedimage.png`, so it can be read without the layers.
+fn merged_png(zip: &[u8]) -> Result<Vec<u8>, String> {
+    use std::io::Read;
+    let damaged = |e: zip::result::ZipError| format!("This file looks damaged: {e}");
+    let mut archive = zip::ZipArchive::new(std::io::Cursor::new(zip)).map_err(damaged)?;
+    let mut entry = archive.by_name("mergedimage.png").map_err(|_| "This file has no flattened picture in it. Save it again from Krita.".to_string())?;
+    let mut png = Vec::with_capacity(entry.size() as usize);
+    entry.read_to_end(&mut png).map_err(|e| format!("This file looks damaged: {e}"))?;
+    Ok(png)
+}
+
+fn compress_still(input: &Path, output: &Path, quality: f32, max_width: u32) -> Result<Option<Note>, String> {
+    let (img, profile) = read_still(input)?;
     let img = shrink(img, max_width);
 
     let (w, h) = img.dimensions();

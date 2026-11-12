@@ -7,12 +7,16 @@ interface Props {
   icon?: string;
   sub?: string;
   size?: 'confirm' | 'content';
+  /** An extra class on the dialog, for its own size. */
+  className?: string;
   onClose(): void;
+  /** Search, tabs, or chips that stay put while the body scrolls. */
+  tools?: ReactNode;
   foot?: ReactNode;
   children: ReactNode;
 }
 
-export function Modal({ title, icon, sub, size, onClose, foot, children }: Props) {
+export function Modal({ title, icon, sub, size, className, onClose, tools, foot, children }: Props) {
   const ref = useRef<HTMLDivElement>(null);
   const [closing, setClosing] = useState(false);
   const closingRef = useRef(false);
@@ -50,7 +54,7 @@ export function Modal({ title, icon, sub, size, onClose, foot, children }: Props
         role="dialog"
         aria-modal="true"
         aria-labelledby={id}
-        className={`modal open${size ? ' modal-' + size : ''}${closing ? ' closing' : ''}`}
+        className={`modal open${size ? ' modal-' + size : ''}${className ? ' ' + className : ''}${closing ? ' closing' : ''}`}
       >
         <div className="modal-head">
           {sub ? (
@@ -69,6 +73,7 @@ export function Modal({ title, icon, sub, size, onClose, foot, children }: Props
             <i className="fa-solid fa-xmark" aria-hidden="true" />
           </button>
         </div>
+        {tools && <div className="modal-tools">{tools}</div>}
         <div className="modal-body">{children}</div>
         {foot && <div className="modal-foot">{foot}</div>}
       </div>

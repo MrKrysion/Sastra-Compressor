@@ -19,10 +19,24 @@ export interface ScanResult {
   unsupported: string[];
 }
 
+/** One format as people know it (src-tauri/src/formats.rs). */
+export interface FormatInfo {
+  kind: Kind;
+  name: string;
+  ext: string[];
+  /** Its label on the home screen, if it's one of the best known. */
+  common: string | null;
+  /** What this computer needs to read it. */
+  note: string | null;
+}
+
 export interface Formats {
+  /** Extensions by kind, for the file picker. */
   image: string[];
   audio: string[];
   video: string[];
+  list: FormatInfo[];
+  videoNote: string | null;
 }
 
 /** Sent to the backend as is (src-tauri/src/settings.rs). */

@@ -3,6 +3,7 @@ mod ffmpeg;
 mod formats;
 mod image_job;
 mod platform;
+mod psd;
 mod runner;
 mod scan;
 mod settings;

@@ -1,4 +1,5 @@
-//! Reading the formats ffmpeg isn't built to read: H.264, HEVC, AAC, and E-AC-3.
+//! Reading the formats ffmpeg isn't built to read: H.264, HEVC, VC-1 (WMV 9), AAC,
+//! WMA Pro, Lossless, and Voice, and AMR.
 //! Their patent licences are the operating system's, so the OS decodes them
 //! (`platform::open_video`, `platform::read_sound`) and ffmpeg only ever sees
 //! raw NV12 pictures on its stdin and the sound as a float WAV file.
@@ -14,8 +15,9 @@ use std::path::Path;
 use std::sync::atomic::{AtomicBool, Ordering};
 
 /// What the OS reads instead of ffmpeg, by the names ffmpeg's log gives the codecs.
-pub const OS_VIDEO: &[&str] = &["h264", "hevc"];
-pub const OS_SOUND: &[&str] = &["aac", "eac3"];
+/// A codec the bundled ffmpeg can decode after all is left to ffmpeg.
+pub const OS_VIDEO: &[&str] = &["h264", "hevc", "vc1", "wmv3"];
+pub const OS_SOUND: &[&str] = &["aac", "eac3", "wmapro", "wmalossless", "wmavoice", "amr_nb", "amr_wb"];
 
 /// Why the OS couldn't read a file.
 #[derive(Debug)]
