@@ -78,7 +78,7 @@ gen "${A6[@]}" -c:a pcm_s16le surround.wav
 fail=0
 check() { # name expected-codecs output
   local got
-  got="$(ffprobe -v error -show_entries stream=codec_name -of csv=p=0 "$3" 2>/dev/null | sort | tr '\n' ' ')"
+  got="$(ffprobe -v error -show_entries stream=codec_name -of csv=p=0 "$3" 2>/dev/null | sort | tr '\n' ' ' || true)"
   if [ "$got" = "$2 " ]; then echo "  ok    $1"; else echo "  FAIL  $1 (got: $got, expected: $2)"; fail=1; fi
 }
 run() { "${RUN[@]}" "$EXE" -hide_banner -nostdin -nostats -loglevel error -y "$@" 2>&1 | tail -3; }
@@ -147,7 +147,7 @@ done
 # shrinking a video to a smaller width
 video 200 0
 run -i vp9-opus.webm "${VIDEO[@]}" small.webm
-size="$(ffprobe -v error -select_streams v -show_entries stream=width,height -of csv=p=0 small.webm)"
+size="$(ffprobe -v error -select_streams v -show_entries stream=width,height -of csv=p=0 small.webm || true)"
 if [ "$size" = "200,114" ]; then echo "  ok    resize to 200 px wide"; else echo "  FAIL  resize (got $size)"; fail=1; fi
 
 [ $fail = 0 ] && echo "All formats passed." || { echo "Some formats failed."; exit 1; }

@@ -91,6 +91,8 @@ PARSERS=mpeg4video,mjpeg,vp8,vp9,av1,mpegaudio,flac,vorbis,opus,ac3,mpegvideo,dc
 # What we write: VP9 + Opus in WebM, Opus in Ogg.
 ENCODERS=libvpx_vp9,libopus
 MUXERS=webm,ogg
+# The WebM muxer runs VP9 through this, but configure doesn't select it for "webm".
+BSFS=vp9_superframe
 FILTERS=scale,format,aresample,aformat,null,anull
 
 CONFIGURE=(
@@ -106,6 +108,7 @@ CONFIGURE=(
   --enable-parser=$PARSERS
   --enable-encoder=$ENCODERS
   --enable-muxer=$MUXERS
+  --enable-bsf=$BSFS
   --enable-filter=$FILTERS
   --extra-version=sastra.$SASTRA_BUILD
 )
