@@ -25,6 +25,7 @@ gen() { ffmpeg -nostdin -hide_banner -loglevel error -y "$@"; }
 V=(-f lavfi -i testsrc2=size=322x182:rate=24:duration=2)   # odd half-width on purpose
 A=(-f lavfi -i sine=frequency=440:sample_rate=44100:duration=2)
 A6=(-f lavfi -i "sine=frequency=440:duration=2,aformat=channel_layouts=5.1")
+V16=(-f lavfi -i testsrc2=size=160x128:rate=24:duration=2)  # for codecs that want multiples of 16
 
 echo "Making samples"
 # video
@@ -50,6 +51,19 @@ gen "${V[@]}" "${A[@]}" -c:v mpeg1video -c:a mp2 -shortest mpeg1-mp2.mkv
 gen "${V[@]}" "${A[@]}" -c:v msmpeg4v3 -c:a mp3 -shortest divx3.avi
 gen "${V[@]}" "${A[@]}" -c:v wmv2 -c:a mp3 -shortest wmv2.avi
 gen -display_rotation 90 -i mpeg4-mp3.avi -c copy rotated.mp4
+gen "${V[@]}" "${A[@]}" -c:v libtheora -c:a libvorbis -shortest theora.ogv
+gen "${V[@]}" "${A[@]}" -c:v wmv1 -c:a wmav1 -shortest wmv1.wmv
+gen "${V[@]}" "${A[@]}" -c:v wmv2 -c:a wmav2 -shortest wmv2.asf
+gen "${V[@]}" "${A[@]}" -c:v mpeg1video -c:a mp2 -shortest mpeg1.mpg
+gen "${V[@]}" "${A[@]}" -c:v mpeg2video -c:a mp2 -shortest -f vob mpeg2.vob
+gen "${V[@]}" "${A[@]}" -c:v mpeg2video -c:a ac3 -shortest mpeg2-ac3.ts
+gen "${V[@]}" -c:v mpeg2video -f mpeg2video silent.m2v
+gen -f lavfi -i testsrc2=size=720x480:rate=30000/1001:duration=2 -f lavfi -i sine=sample_rate=48000:duration=2 -c:v dvvideo -pix_fmt yuv411p -c:a pcm_s16le -shortest dv.avi
+gen -f lavfi -i testsrc2=size=352x288:rate=25:duration=2 "${A[@]}" -c:v h263 -c:a pcm_s16le -shortest h263.mov
+gen "${V16[@]}" "${A[@]}" -c:v cinepak -c:a pcm_s16le -shortest cinepak.avi
+gen "${V16[@]}" "${A[@]}" -c:v msvideo1 -c:a pcm_s16le -shortest msvideo1.avi
+gen "${V16[@]}" "${A[@]}" -c:v svq1 -c:a pcm_s16le -shortest svq1.mov
+gen "${V[@]}" "${A[@]}" -c:v msmpeg4v2 -c:a mp3 -shortest msmpeg4v2.avi
 gen "${V[@]}" "${A[@]}" -c:v libx264 -c:a dca -strict -2 -shortest h264-dts.mkv
 gen "${V[@]}" "${A[@]}" -c:v libx264 -c:a pcm_alaw -shortest h264-alaw.mov
 gen "${V[@]}" "${A[@]}" -c:v libx264 -c:a pcm_mulaw -shortest h264-mulaw.mov
@@ -76,6 +90,22 @@ gen "${A[@]}" -c:a pcm_s16be a.aiff
 gen "${A[@]}" -c:a pcm_s24be a.aif
 gen "${A6[@]}" -c:a pcm_s16le surround.wav
 gen -f lavfi -i "sine=frequency=440:duration=2,aformat=channel_layouts=5.1(side)" -c:a pcm_s16le side.wav
+gen "${A[@]}" -c:a eac3 a.eac3
+gen "${A[@]}" -c:a ac3 a.ac3
+gen "${A[@]}" -c:a dca -strict -2 a.dts
+gen "${A[@]}" -c:a mp2 a.mp2
+gen "${A[@]}" -c:a wavpack a.wv
+gen "${A[@]}" -c:a tta a.tta
+gen -f lavfi -i sine=sample_rate=16000:duration=2 -c:a libspeex a.spx
+gen "${A[@]}" -c:a wmav2 a.wma
+gen "${A[@]}" -c:a pcm_s16be a.au
+gen "${A[@]}" -c:a pcm_s16le a.caf
+gen "${A[@]}" -c:a libvorbis a.mka
+gen "${A[@]}" -c:a libopus -f webm a.weba
+gen "${A[@]}" -c:a adpcm_ima_qt -f aiff ima4.aifc
+gen "${A[@]}" -c:a pcm_f32be -f aiff f32be.aifc
+# a still AVIF picture
+gen -f lavfi -i testsrc2=size=64x48 -frames:v 1 -c:v libaom-av1 -still-picture 1 pic.avif
 
 fail=0
 check() { # name expected-codecs output
@@ -97,7 +127,7 @@ video() { # width sound-input
 }
 
 echo "Checking that no patented codec is built in"
-for c in h264 hevc aac aac_latm eac3 prores dnxhd; do
+for c in h264 hevc aac aac_latm prores dnxhd vc1 wmv3 wmapro wmalossless wmavoice amrnb amrwb svq3; do
   if "${RUN[@]}" "$EXE" -hide_banner -decoders 2>/dev/null | grep -qE "^ [A-Z.]{6} $c "; then echo "  FAIL  decoder $c"; fail=1; fi
 done
 for c in libx264 aac h264_mf aac_mf; do
@@ -108,10 +138,10 @@ done
 echo "Converting videos"
 video iw 0
 for f in vp9-opus.webm vp8-vorbis.webm av1-opus.mkv mpeg4-mp3.avi mjpeg-pcm.avi raw-silent.avi \
-         qtrle.mov huffyuv.avi ffvhuff.avi utvideo.avi ffv1.mkv mpeg2-mp2.mkv mpeg1-mp2.mkv divx3.avi wmv2.avi; do
+         qtrle.mov huffyuv.avi ffvhuff.avi utvideo.avi ffv1.mkv mpeg2-mp2.mkv mpeg1-mp2.mkv divx3.avi wmv2.avi          theora.ogv wmv1.wmv wmv2.asf mpeg1.mpg mpeg2.vob mpeg2-ac3.ts silent.m2v dv.avi h263.mov cinepak.avi          msvideo1.avi svq1.mov msmpeg4v2.avi; do
   out="out-$f.webm"
   run -i "$f" "${VIDEO[@]}" "$out" || true
-  if [ "$f" = raw-silent.avi ]; then check "$f" "vp9" "$out"; else check "$f" "opus vp9" "$out"; fi
+  case "$f" in raw-silent.avi|silent.m2v) check "$f" "vp9" "$out" ;; *) check "$f" "opus vp9" "$out" ;; esac
 done
 
 # Read by the operating system in the app: raw frames on stdin, the sound as a WAV file.
@@ -142,7 +172,7 @@ for f in h264-aac.mp4 prores-pcm.mov dnxhr-pcm.mov a.aac; do
 done
 
 echo "Converting sound"
-for f in *.wav *.w64 *.flac *.mp3 *.ogg *.oga *.opus *.aiff *.aif alac.m4a; do
+for f in *.wav *.w64 *.flac *.mp3 *.ogg *.oga *.opus *.aiff *.aif *.aifc alac.m4a          *.eac3 *.ac3 *.dts *.mp2 *.wv *.tta *.spx *.wma *.au *.caf *.mka *.weba; do
   case "$f" in sound.wav) continue ;; esac
   out="out-$f.ogg"
   run -i "$f" -map 0:a:0 -vn -sn -dn -map_chapters -1 -af "$OPUS_LAYOUTS" -c:a libopus -b:a 96k -vbr on -f ogg "$out" || true
@@ -160,5 +190,9 @@ video iw 0
 run -i rotated.mp4 "${VIDEO[@]}" upright.webm
 size="$(ffprobe -v error -select_streams v -show_entries stream=width,height -of csv=p=0 upright.webm || true)"
 if [ "$size" = "182,322" ]; then echo "  ok    rotated video turned upright"; else echo "  FAIL  rotation (got $size)"; fail=1; fi
+
+# an AVIF picture comes out as raw RGBA for the app to make into WebP
+run -i pic.avif -frames:v 1 -f rawvideo -pix_fmt rgba pic.rgba
+if [ "$(stat -c %s pic.rgba 2>/dev/null)" = $((64 * 48 * 4)) ]; then echo "  ok    AVIF picture"; else echo "  FAIL  AVIF picture"; fail=1; fi
 
 [ $fail = 0 ] && echo "All formats passed." || { echo "Some formats failed."; exit 1; }

@@ -79,22 +79,28 @@ unpack ffmpeg.tar.xz ffmpeg
 
 # Inputs we accept, and only the parts of ffmpeg needed to read them.
 # Keep this list in step with src-tauri/src/formats.rs in the app.
-# No patented codecs: H.264, HEVC, AAC, and E-AC-3 are read by the operating
-# system, which pipes raw frames ("rawvideo", NV12) and PCM sound in. ProRes and
-# DNxHD aren't read at all. Containers are still demuxed here: reading headers isn't decoding.
-DEMUXERS=mov,matroska,avi,mp3,wav,w64,flac,ogg,aac,aiff,rawvideo
+# No patented codecs: H.264, HEVC, AAC, VC-1 (WMV 9), WMA Pro, Lossless, and Voice,
+# and AMR are read by the operating system, which pipes raw frames ("rawvideo",
+# NV12) and PCM sound in. ProRes and DNxHD aren't read here. Containers are still
+# demuxed here: reading headers isn't decoding.
+DEMUXERS=mov,matroska,avi,mp3,wav,w64,flac,ogg,aac,aiff,rawvideo,mpegps,mpegvideo,mpegts,asf,wv,ape,tta,mpc,mpc8,au,caf,ac3,eac3,dts,amr
 # Besides everyday codecs: what editors export (QuickTime Animation, HuffYUV,
-# Ut Video, FFV1), and older video and sound, since one unreadable track fails a whole video.
-VIDEO_DECODERS=mpeg4,mjpeg,vp8,vp9,libdav1d,rawvideo,qtrle,huffyuv,ffvhuff,utvideo,ffv1,mpeg2video,mpeg1video,msmpeg4v3,wmv2
-AUDIO_DECODERS=mp3float,flac,vorbis,opus,alac,ac3,pcm_s16le,pcm_s24le,pcm_s32le,pcm_f32le,pcm_f64le,pcm_s16be,pcm_s24be,pcm_s32be,pcm_u8,pcm_s8,pcm_alaw,pcm_mulaw,adpcm_ms,adpcm_ima_wav,mp2float,dca
-PARSERS=mpeg4video,mjpeg,vp8,vp9,av1,mpegaudio,flac,vorbis,opus,ac3,mpegvideo,dca
-# What we write: VP9 + Opus in WebM, Opus in Ogg.
-ENCODERS=libvpx_vp9,libopus
-MUXERS=webm,ogg
+# Ut Video, FFV1), and older video and sound, since one unreadable track fails a
+# whole video. The 1990s codecs (WMV 7 and 8, MS-MPEG4, DV, H.263, Cinepak,
+# Video 1, Indeo, Sorenson 1) are long out of patent.
+VIDEO_DECODERS=mpeg4,mjpeg,vp8,vp9,libdav1d,rawvideo,qtrle,huffyuv,ffvhuff,utvideo,ffv1,mpeg2video,mpeg1video,msmpeg4v1,msmpeg4v2,msmpeg4v3,wmv1,wmv2,theora,dvvideo,h263,cinepak,msvideo1,indeo2,indeo3,indeo4,indeo5,svq1
+# E-AC-3's last US patent expired in January 2026; WMA 1 and 2 are from 1999 and 2000.
+AUDIO_DECODERS=mp3float,flac,vorbis,opus,alac,ac3,eac3,pcm_s16le,pcm_s24le,pcm_s32le,pcm_f32le,pcm_f64le,pcm_s16be,pcm_s24be,pcm_s32be,pcm_f32be,pcm_f64be,pcm_u8,pcm_s8,pcm_alaw,pcm_mulaw,adpcm_ms,adpcm_ima_wav,adpcm_ima_qt,mp2float,dca,wavpack,ape,tta,mpc7,mpc8,speex,wmav1,wmav2
+PARSERS=mpeg4video,mjpeg,vp8,vp9,av1,mpegaudio,flac,vorbis,opus,ac3,mpegvideo,dca,h263,dvd_nav,dvaudio
+# What we write: VP9 + Opus in WebM, Opus in Ogg, and raw RGBA pictures (an AVIF,
+# read here and handed to the app, which makes the WebP).
+ENCODERS=libvpx_vp9,libopus,rawvideo
+MUXERS=webm,ogg,rawvideo
 # The WebM muxer runs VP9 through this, but configure doesn't select it for "webm".
 BSFS=vp9_superframe
-# transpose, hflip, and vflip turn rotated phone videos upright.
-FILTERS=scale,format,aresample,aformat,null,anull,transpose,hflip,vflip
+# transpose, hflip, and vflip turn rotated phone videos upright; alphamerge joins an
+# AVIF's picture and its separately stored transparency.
+FILTERS=scale,format,aresample,aformat,null,anull,transpose,hflip,vflip,alphamerge
 
 CONFIGURE=(
   --target-os=mingw32 --arch=x86_64 --cross-prefix=$HOST- --pkg-config=pkg-config
