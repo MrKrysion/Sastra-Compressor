@@ -102,7 +102,8 @@ CONFIGURE=(
   --disable-everything --disable-autodetect --disable-network --disable-doc
   --disable-ffplay --disable-ffprobe --disable-avdevice --disable-debug --enable-small
   --enable-w32threads --enable-libvpx --enable-libopus --enable-libdav1d
-  --enable-protocol=file,pipe
+  # "fd" reads "-" (stdin) since ffmpeg 9; "pipe" writes -progress pipe:1.
+  --enable-protocol=file,pipe,fd
   --enable-demuxer=$DEMUXERS
   --enable-decoder=$VIDEO_DECODERS,$AUDIO_DECODERS
   --enable-parser=$PARSERS
