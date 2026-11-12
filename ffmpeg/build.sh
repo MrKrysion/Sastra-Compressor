@@ -93,7 +93,8 @@ ENCODERS=libvpx_vp9,libopus
 MUXERS=webm,ogg
 # The WebM muxer runs VP9 through this, but configure doesn't select it for "webm".
 BSFS=vp9_superframe
-FILTERS=scale,format,aresample,aformat,null,anull
+# transpose, hflip, and vflip turn rotated phone videos upright.
+FILTERS=scale,format,aresample,aformat,null,anull,transpose,hflip,vflip
 
 CONFIGURE=(
   --target-os=mingw32 --arch=x86_64 --cross-prefix=$HOST- --pkg-config=pkg-config

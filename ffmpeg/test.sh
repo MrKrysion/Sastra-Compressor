@@ -49,6 +49,7 @@ gen "${V[@]}" "${A[@]}" -c:v mpeg2video -c:a mp2 -shortest mpeg2-mp2.mkv
 gen "${V[@]}" "${A[@]}" -c:v mpeg1video -c:a mp2 -shortest mpeg1-mp2.mkv
 gen "${V[@]}" "${A[@]}" -c:v msmpeg4v3 -c:a mp3 -shortest divx3.avi
 gen "${V[@]}" "${A[@]}" -c:v wmv2 -c:a mp3 -shortest wmv2.avi
+gen -display_rotation 90 -i mpeg4-mp3.avi -c copy rotated.mp4
 gen "${V[@]}" "${A[@]}" -c:v libx264 -c:a dca -strict -2 -shortest h264-dts.mkv
 gen "${V[@]}" "${A[@]}" -c:v libx264 -c:a pcm_alaw -shortest h264-alaw.mov
 gen "${V[@]}" "${A[@]}" -c:v libx264 -c:a pcm_mulaw -shortest h264-mulaw.mov
@@ -153,5 +154,11 @@ video 200 0
 run -i vp9-opus.webm "${VIDEO[@]}" small.webm
 size="$(ffprobe -v error -select_streams v -show_entries stream=width,height -of csv=p=0 small.webm || true)"
 if [ "$size" = "200,114" ]; then echo "  ok    resize to 200 px wide"; else echo "  FAIL  resize (got $size)"; fail=1; fi
+
+# a phone video on its side comes out upright (322x182 turned: 182x322)
+video iw 0
+run -i rotated.mp4 "${VIDEO[@]}" upright.webm
+size="$(ffprobe -v error -select_streams v -show_entries stream=width,height -of csv=p=0 upright.webm || true)"
+if [ "$size" = "182,322" ]; then echo "  ok    rotated video turned upright"; else echo "  FAIL  rotation (got $size)"; fail=1; fi
 
 [ $fail = 0 ] && echo "All formats passed." || { echo "Some formats failed."; exit 1; }
