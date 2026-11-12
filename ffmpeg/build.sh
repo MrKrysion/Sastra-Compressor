@@ -8,7 +8,7 @@
 # Output, in <work-dir>/out:
 #   ffmpeg.exe            the program
 #   licences/             licence texts of ffmpeg and every library in it
-#   sources/              the exact source code used (GPL: shipped with releases)
+#   sources/              the exact source code used (LGPL: shipped with releases)
 #   BUILD.txt             versions and the full configure line
 set -euo pipefail
 
@@ -37,19 +37,12 @@ unpack() { # file dir
   tar -xf "$SRC/$1" -C "$SRC/$2" --strip-components=1
 }
 
-echo "== x264"
-if [ ! -f "$SRC/x264.tar.xz" ]; then
-  rm -rf "$SRC/x264-git"; git init -q "$SRC/x264-git"
-  git -C "$SRC/x264-git" fetch -q --depth 1 "$X264_REPO" "$X264_COMMIT"
-  [ "$(git -C "$SRC/x264-git" rev-parse FETCH_HEAD)" = "$X264_COMMIT" ]
-  git -C "$SRC/x264-git" archive --prefix=x264/ FETCH_HEAD | xz -9 > "$SRC/x264.tar.xz"
-  rm -rf "$SRC/x264-git"
-fi
-unpack x264.tar.xz x264
-( cd "$SRC/x264"
-  ./configure --host=$HOST --cross-prefix=$HOST- --prefix="$PREFIX" \
-    --enable-static --disable-cli --disable-opencl --disable-lavf \
-    --disable-swscale --disable-ffms --disable-gpac --disable-lsmash --bit-depth=8
+echo "== libvpx"
+fetch "$LIBVPX_URL" "$LIBVPX_SHA256" libvpx.tar.gz
+unpack libvpx.tar.gz libvpx
+# Only the VP9 encoder: ffmpeg's own vp8 and vp9 decoders read WebM.
+( cd "$SRC/libvpx"
+  CROSS=$HOST- ./configure --target=x86_64-win64-gcc --prefix="$PREFIX" --as=nasm     --enable-static --disable-shared --disable-examples --disable-tools --disable-docs     --disable-unit-tests --disable-install-bins --disable-install-srcs     --disable-vp8 --disable-vp9-decoder
   make -j"$JOBS" && make install )
 
 echo "== opus"
@@ -86,24 +79,27 @@ unpack ffmpeg.tar.xz ffmpeg
 
 # Inputs we accept, and only the parts of ffmpeg needed to read them.
 # Keep this list in step with src-tauri/src/formats.rs in the app.
-DEMUXERS=mov,matroska,avi,mp3,wav,w64,flac,ogg,aac,aiff
+# No patented codecs: H.264, HEVC, AAC, and E-AC-3 are read by the operating
+# system, which pipes raw frames ("rawvideo", NV12) and PCM sound in. ProRes and
+# DNxHD aren't read at all. Containers are still demuxed here: reading headers isn't decoding.
+DEMUXERS=mov,matroska,avi,mp3,wav,w64,flac,ogg,aac,aiff,rawvideo
 # Besides everyday codecs: what editors export (QuickTime Animation, HuffYUV,
 # Ut Video, FFV1), and older video and sound, since one unreadable track fails a whole video.
-VIDEO_DECODERS=h264,hevc,prores,dnxhd,mpeg4,mjpeg,vp8,vp9,libdav1d,rawvideo,qtrle,huffyuv,ffvhuff,utvideo,ffv1,mpeg2video,mpeg1video,msmpeg4v3,wmv2
-AUDIO_DECODERS=aac,mp3float,flac,vorbis,opus,alac,ac3,eac3,pcm_s16le,pcm_s24le,pcm_s32le,pcm_f32le,pcm_f64le,pcm_s16be,pcm_s24be,pcm_s32be,pcm_u8,pcm_s8,pcm_alaw,pcm_mulaw,adpcm_ms,adpcm_ima_wav,mp2float,dca
-PARSERS=h264,hevc,mpeg4video,mjpeg,dnxhd,vp8,vp9,av1,aac,mpegaudio,flac,vorbis,opus,ac3,mpegvideo,dca
-# What we write: H.264 + AAC in MP4, Opus in Ogg; "null" is used to read durations.
-ENCODERS=libx264,aac,libopus
-MUXERS=mp4,ogg,null
+VIDEO_DECODERS=mpeg4,mjpeg,vp8,vp9,libdav1d,rawvideo,qtrle,huffyuv,ffvhuff,utvideo,ffv1,mpeg2video,mpeg1video,msmpeg4v3,wmv2
+AUDIO_DECODERS=mp3float,flac,vorbis,opus,alac,ac3,pcm_s16le,pcm_s24le,pcm_s32le,pcm_f32le,pcm_f64le,pcm_s16be,pcm_s24be,pcm_s32be,pcm_u8,pcm_s8,pcm_alaw,pcm_mulaw,adpcm_ms,adpcm_ima_wav,mp2float,dca
+PARSERS=mpeg4video,mjpeg,vp8,vp9,av1,mpegaudio,flac,vorbis,opus,ac3,mpegvideo,dca
+# What we write: VP9 + Opus in WebM, Opus in Ogg.
+ENCODERS=libvpx_vp9,libopus
+MUXERS=webm,ogg
 FILTERS=scale,format,aresample,aformat,null,anull
 
 CONFIGURE=(
   --target-os=mingw32 --arch=x86_64 --cross-prefix=$HOST- --pkg-config=pkg-config
   --pkg-config-flags=--static --extra-ldflags=-static --prefix="$WORK/ffmpeg-install"
-  --enable-gpl --enable-static --disable-shared
+  --enable-static --disable-shared
   --disable-everything --disable-autodetect --disable-network --disable-doc
   --disable-ffplay --disable-ffprobe --disable-avdevice --disable-debug --enable-small
-  --enable-w32threads --enable-libx264 --enable-libopus --enable-libdav1d
+  --enable-w32threads --enable-libvpx --enable-libopus --enable-libdav1d
   --enable-protocol=file,pipe
   --enable-demuxer=$DEMUXERS
   --enable-decoder=$VIDEO_DECODERS,$AUDIO_DECODERS
@@ -119,16 +115,17 @@ CONFIGURE=(
   $HOST-strip -o "$OUT/ffmpeg.exe" ffmpeg.exe )
 
 echo "== licences and sources"
-cp "$SRC/ffmpeg/COPYING.GPLv2" "$OUT/licences/ffmpeg-GPLv2.txt"
-cp "$SRC/ffmpeg/LICENSE.md"    "$OUT/licences/ffmpeg-LICENSE.md"
-cp "$SRC/x264/COPYING"         "$OUT/licences/x264-GPLv2.txt"
-cp "$SRC/opus/COPYING"         "$OUT/licences/opus-BSD.txt"
-cp "$SRC/dav1d/COPYING"        "$OUT/licences/dav1d-BSD.txt"
-cp "$SRC"/ffmpeg.tar.xz "$SRC"/x264.tar.xz "$SRC"/opus.tar.gz "$SRC"/dav1d.tar.xz "$OUT/sources/"
+cp "$SRC/ffmpeg/COPYING.LGPLv2.1" "$OUT/licences/ffmpeg-LGPLv2.1.txt"
+cp "$SRC/ffmpeg/LICENSE.md"       "$OUT/licences/ffmpeg-LICENSE.md"
+cp "$SRC/libvpx/LICENSE"          "$OUT/licences/libvpx-BSD.txt"
+cp "$SRC/libvpx/PATENTS"          "$OUT/licences/libvpx-PATENTS.txt"
+cp "$SRC/opus/COPYING"            "$OUT/licences/opus-BSD.txt"
+cp "$SRC/dav1d/COPYING"           "$OUT/licences/dav1d-BSD.txt"
+cp "$SRC"/ffmpeg.tar.xz "$SRC"/libvpx.tar.gz "$SRC"/opus.tar.gz "$SRC"/dav1d.tar.xz "$OUT/sources/"
 cp "$HERE/build.sh" "$HERE/versions.sh" "$OUT/sources/"
 {
   echo "ffmpeg $FFMPEG_VERSION (sastra.$SASTRA_BUILD), built $(date -u +%Y-%m-%d)"
-  echo "x264 $X264_COMMIT"
+  echo "libvpx $LIBVPX_VERSION"
   echo "opus $OPUS_VERSION"
   echo "dav1d $DAV1D_VERSION"
   echo "Compiler: $($HOST-gcc --version | head -1)"

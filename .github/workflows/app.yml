@@ -1,7 +1,7 @@
 # Pushes to main and pull requests run the checks. The Windows app is only built
 # for a release, or on request for any branch (Actions > app > Run workflow).
 # Publishing a release on GitHub attaches the installer, a portable zip,
-# and ffmpeg's source code (the GPL asks for it) to that release.
+# and ffmpeg's source code (the LGPL asks for it) to that release.
 name: app
 
 on:

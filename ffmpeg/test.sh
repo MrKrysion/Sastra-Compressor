@@ -7,6 +7,10 @@
 # every encoder), converts each with ffmpeg.exe using the same arguments as
 # the app (src-tauri/src/ffmpeg.rs), and checks the result with ffprobe.
 # Runs ffmpeg.exe under Wine on Linux, or directly on Windows.
+#
+# ffmpeg.exe has no patented codecs. In the app, the operating system decodes
+# H.264, HEVC, AAC, and E-AC-3 and pipes raw NV12 frames and PCM sound into it;
+# here the system's ffmpeg stands in for the operating system.
 set -euo pipefail
 
 EXE="$(realpath "$1")"
@@ -74,29 +78,76 @@ gen "${A6[@]}" -c:a pcm_s16le surround.wav
 fail=0
 check() { # name expected-codecs output
   local got
-  got="$(ffprobe -v error -show_entries stream=codec_name -of csv=p=0 "$3" | sort | tr '\n' ' ')"
+  got="$(ffprobe -v error -show_entries stream=codec_name -of csv=p=0 "$3" 2>/dev/null | sort | tr '\n' ' ')"
   if [ "$got" = "$2 " ]; then echo "  ok    $1"; else echo "  FAIL  $1 (got: $got, expected: $2)"; fail=1; fi
 }
 run() { "${RUN[@]}" "$EXE" -hide_banner -nostdin -nostats -loglevel error -y "$@" 2>&1 | tail -3; }
+# What the app writes for a video, into VIDEO. 0 = keep the width (here: 322 → 322,
+# height made even). The sound is input 0, or 1 when the frames come in through a pipe.
+video() { # width sound-input
+  VIDEO=(-map 0:v:0 -map "$2:a:0?" -sn -dn -map_chapters -1
+    -vf "scale='trunc(min($1,iw)/2)*2':-2,format=yuv420p"
+    -c:v libvpx-vp9 -crf 33 -b:v 0 -deadline good -cpu-used 4 -row-mt 1
+    -c:a libopus -b:a 96k -vbr on -cues_to_front 1 -f webm)
+}
 
-echo "Converting"
-for f in *.mp4 *.m4v *.mkv *.webm *.mov *.avi; do
-  out="out-$f.mp4"
-  # same as the app; 0 = keep the width (here: 322 → 322, height made even)
-  run -i "$f" -map 0:v:0 -map "0:a:0?" -sn -dn -map_chapters -1 \
-    -vf "scale='trunc(min(iw,iw)/2)*2':-2,format=yuv420p" \
-    -c:v libx264 -preset slow -crf 26 -c:a aac -b:a 128k -movflags +faststart -f mp4 "$out" || true
-  if [ "$f" = raw-silent.avi ]; then check "$f" "h264" "$out"; else check "$f" "aac h264" "$out"; fi
+echo "Checking that no patented codec is built in"
+for c in h264 hevc aac aac_latm eac3 prores dnxhd; do
+  if "${RUN[@]}" "$EXE" -hide_banner -decoders 2>/dev/null | grep -qE "^ [A-Z.]{6} $c "; then echo "  FAIL  decoder $c"; fail=1; fi
 done
-for f in *.wav *.w64 *.flac *.mp3 *.ogg *.oga *.opus *.m4a *.aac *.aiff *.aif; do
+for c in libx264 aac h264_mf aac_mf; do
+  if "${RUN[@]}" "$EXE" -hide_banner -encoders 2>/dev/null | grep -qE "^ [A-Z.]{6} $c "; then echo "  FAIL  encoder $c"; fail=1; fi
+done
+[ $fail = 0 ] && echo "  ok    none"
+
+echo "Converting videos"
+video iw 0
+for f in vp9-opus.webm vp8-vorbis.webm av1-opus.mkv mpeg4-mp3.avi mjpeg-pcm.avi raw-silent.avi \
+         qtrle.mov huffyuv.avi ffvhuff.avi utvideo.avi ffv1.mkv mpeg2-mp2.mkv mpeg1-mp2.mkv divx3.avi wmv2.avi; do
+  out="out-$f.webm"
+  run -i "$f" "${VIDEO[@]}" "$out" || true
+  if [ "$f" = raw-silent.avi ]; then check "$f" "vp9" "$out"; else check "$f" "opus vp9" "$out"; fi
+done
+
+# Read by the operating system in the app: raw frames on stdin, the sound as a WAV file.
+echo "Converting videos the operating system reads"
+video iw 1
+for f in h264-aac.mp4 h264-aac.m4v hevc-ac3.mkv h264-eac3.mkv h264-dts.mkv h264-alaw.mov h264-mulaw.mov; do
+  out="out-$f.webm"
+  size="$(ffprobe -v error -select_streams v:0 -show_entries stream=width,height -of csv=s=x:p=0 "$f")"
+  rate="$(ffprobe -v error -select_streams v:0 -show_entries stream=avg_frame_rate -of csv=p=0 "$f")"
+  gen -i "$f" -map 0:a:0 -c:a pcm_f32le sound.wav
+  ffmpeg -nostdin -loglevel error -i "$f" -map 0:v:0 -f rawvideo -pix_fmt nv12 - \
+    | "${RUN[@]}" "$EXE" -hide_banner -nostats -loglevel error -y \
+        -f rawvideo -pix_fmt nv12 -video_size "$size" -framerate "$rate" -i - -i sound.wav "${VIDEO[@]}" "$out" 2>&1 | tail -3 || true
+  check "$f" "opus vp9" "$out"
+done
+
+# What can't be read without a patented decoder must fail clearly, not quietly.
+echo "Refusing what needs a patented decoder"
+video iw 0
+for f in h264-aac.mp4 prores-pcm.mov dnxhr-pcm.mov a.aac; do
+  if [ "$f" = a.aac ]; then args=(-map 0:a:0 -c:a libopus -f ogg); else args=("${VIDEO[@]}"); fi
+  msg="$(run -i "$f" "${args[@]}" "refused-$f" || true)"
+  if [ ! -s "refused-$f" ] && grep -qiE "no decoder found|decoder.*not found" <<<"$msg"; then
+    echo "  ok    $f"
+  else
+    echo "  FAIL  $f (${msg:-no error})"; fail=1
+  fi
+done
+
+echo "Converting sound"
+for f in *.wav *.w64 *.flac *.mp3 *.ogg *.oga *.opus *.aiff *.aif alac.m4a; do
+  case "$f" in sound.wav) continue ;; esac
   out="out-$f.ogg"
   run -i "$f" -map 0:a:0 -vn -sn -dn -map_chapters -1 -c:a libopus -b:a 96k -vbr on -f ogg "$out" || true
   check "$f" "opus" "$out"
 done
+
 # shrinking a video to a smaller width
-run -i h264-aac.mp4 -map 0:v:0 -map "0:a:0?" -vf "scale='trunc(min(200,iw)/2)*2':-2,format=yuv420p" \
-  -c:v libx264 -preset slow -crf 26 -c:a aac -b:a 128k -f mp4 small.mp4
-size="$(ffprobe -v error -select_streams v -show_entries stream=width,height -of csv=p=0 small.mp4)"
+video 200 0
+run -i vp9-opus.webm "${VIDEO[@]}" small.webm
+size="$(ffprobe -v error -select_streams v -show_entries stream=width,height -of csv=p=0 small.webm)"
 if [ "$size" = "200,114" ]; then echo "  ok    resize to 200 px wide"; else echo "  FAIL  resize (got $size)"; fail=1; fi
 
 [ $fail = 0 ] && echo "All formats passed." || { echo "Some formats failed."; exit 1; }
