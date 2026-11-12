@@ -82,15 +82,17 @@ check() { # name expected-codecs output
   got="$(ffprobe -v error -show_entries stream=codec_name -of csv=p=0 "$3" 2>/dev/null | sort | tr '\n' ' ' || true)"
   if [ "$got" = "$2 " ]; then echo "  ok    $1"; else echo "  FAIL  $1 (got: $got, expected: $2)"; fail=1; fi
 }
+# libopus takes only these channel layouts (Vorbis order); anything else, such as
+# 5.1 (side), is converted to the nearest one instead of failing.
+OPUS_LAYOUTS="aformat=channel_layouts=mono|stereo|3.0|quad|5.0|5.1|6.1|7.1"
 run() { "${RUN[@]}" "$EXE" -hide_banner -nostdin -nostats -loglevel error -y "$@" 2>&1 | tail -3; }
 # What the app writes for a video, into VIDEO. 0 = keep the width (here: 322 → 322,
-# height made even). Surround sound becomes stereo: libopus refuses some layouts, and
-# games don't need it. The sound is input 0, or 1 when the frames come in through a pipe.
+# height made even). The sound is input 0, or 1 when the frames come in through a pipe.
 video() { # width sound-input
   VIDEO=(-map 0:v:0 -map "$2:a:0?" -sn -dn -map_chapters -1
     -vf "scale='trunc(min($1,iw)/2)*2':-2,format=yuv420p"
     -c:v libvpx-vp9 -crf 33 -b:v 0 -deadline good -cpu-used 4 -row-mt 1
-    -af "aformat=channel_layouts=mono|stereo" -c:a libopus -b:a 96k -vbr on -cues_to_front 1 -f webm)
+    -af "$OPUS_LAYOUTS" -c:a libopus -b:a 96k -vbr on -cues_to_front 1 -f webm)
 }
 
 echo "Checking that no patented codec is built in"
@@ -142,7 +144,7 @@ echo "Converting sound"
 for f in *.wav *.w64 *.flac *.mp3 *.ogg *.oga *.opus *.aiff *.aif alac.m4a; do
   case "$f" in sound.wav) continue ;; esac
   out="out-$f.ogg"
-  run -i "$f" -map 0:a:0 -vn -sn -dn -map_chapters -1 -c:a libopus -b:a 96k -vbr on -f ogg "$out" || true
+  run -i "$f" -map 0:a:0 -vn -sn -dn -map_chapters -1 -af "$OPUS_LAYOUTS" -c:a libopus -b:a 96k -vbr on -f ogg "$out" || true
   check "$f" "opus" "$out"
 done
 
