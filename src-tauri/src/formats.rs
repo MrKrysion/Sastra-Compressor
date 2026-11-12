@@ -34,7 +34,7 @@ pub fn output_ext(kind: Kind) -> &'static str {
     match kind {
         Kind::Image => "webp",
         Kind::Audio => "ogg",
-        Kind::Video => "mp4",
+        Kind::Video => "webm",
     }
 }
 

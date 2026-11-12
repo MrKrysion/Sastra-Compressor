@@ -1,6 +1,7 @@
-//! End-to-end checks of the compressing itself. The ffmpeg tests need an
-//! `ffmpeg` on the PATH (any build with x264 and libopus); they are skipped
-//! when there is none.
+//! End-to-end checks of the compressing itself. The ffmpeg tests make their samples
+//! with a full ffmpeg and ffprobe (libx264, libvpx, libopus, the AAC encoder), and are
+//! skipped without one. `cargo test` puts the app's own ffmpeg first on the PATH, so
+//! point `SASTRA_TEST_FFMPEG` at the folder of a full one.
 
 use crate::formats::Kind;
 use crate::runner::{work, Update};
@@ -67,13 +68,25 @@ fn not_an_image_is_a_clear_error() {
     assert!(image_job::compress(&src, &d.join("x.webp"), 75.0, 0).is_err());
 }
 
-fn have_ffmpeg() -> bool {
-    Command::new("ffmpeg").arg("-version").output().is_ok()
+/// The full ffmpeg or ffprobe the samples are made and checked with.
+pub fn tool(name: &str) -> Command {
+    let dir = std::env::var_os("SASTRA_TEST_FFMPEG").map(PathBuf::from).unwrap_or_default();
+    Command::new(dir.join(name))
 }
 
-fn make(path: &Path, args: &[&str]) {
-    let ok = Command::new("ffmpeg").args(["-hide_banner", "-loglevel", "error", "-y"]).args(args).arg(path).status().unwrap();
-    assert!(ok.success());
+pub fn have_ffmpeg() -> bool {
+    tool("ffmpeg").args(["-hide_banner", "-filters"]).output().is_ok_and(|o| String::from_utf8_lossy(&o.stdout).contains("testsrc2"))
+}
+
+pub fn make(path: &Path, args: &[&str]) {
+    let ok = tool("ffmpeg").args(["-hide_banner", "-loglevel", "error", "-y"]).args(args).arg(path).status().unwrap();
+    assert!(ok.success(), "making {}", path.display());
+}
+
+/// What ffprobe says, one line per stream (or format), as CSV.
+fn probe(path: &Path, entries: &str) -> String {
+    let out = tool("ffprobe").args(["-v", "error", "-show_entries", entries, "-of", "csv=p=0"]).arg(path).output().unwrap();
+    String::from_utf8_lossy(&out.stdout).lines().map(str::trim).collect::<Vec<_>>().join("\n")
 }
 
 #[test]
@@ -86,7 +99,7 @@ fn audio_becomes_opus_with_progress() {
     make(&src, &["-f", "lavfi", "-i", "sine=frequency=440:duration=5"]);
     let out = d.join("theme.ogg");
     let mut seen = vec![];
-    ffmpeg::run(Kind::Audio, &src, &out, &settings(), &ffmpeg::inspect(&src), &Arc::new(AtomicBool::new(false)), |p| seen.push(p)).unwrap();
+    ffmpeg::compress(Kind::Audio, &src, &out, &settings(), &ffmpeg::inspect(&src), &Arc::new(AtomicBool::new(false)), |p| seen.push(p)).unwrap();
     assert!(std::fs::metadata(&out).unwrap().len() > 1000);
     assert!(seen.iter().any(|p| *p > 0.5), "progress was reported: {seen:?}");
 }
@@ -98,15 +111,52 @@ fn odd_sized_video_is_shrunk_and_made_even() {
     }
     let d = temp("video");
     let src = d.join("op.mkv");
-    make(&src, &["-f", "lavfi", "-i", "testsrc2=size=1921x1081:rate=24:duration=1", "-c:v", "libx264"]);
-    let out = d.join("op.mp4");
-    ffmpeg::run(Kind::Video, &src, &out, &settings(), &ffmpeg::inspect(&src), &Arc::new(AtomicBool::new(false)), |_| {}).unwrap();
-    let probe = Command::new("ffprobe")
-        .args(["-v", "error", "-select_streams", "v", "-show_entries", "stream=width,height", "-of", "csv=p=0"])
-        .arg(&out)
-        .output()
-        .unwrap();
-    assert_eq!(String::from_utf8_lossy(&probe.stdout).trim(), "1280,720");
+    make(&src, &["-f", "lavfi", "-i", "testsrc2=size=1921x1081:rate=24:duration=1", "-c:v", "ffv1"]);
+    let out = d.join("op.webm");
+    ffmpeg::compress(Kind::Video, &src, &out, &settings(), &ffmpeg::inspect(&src), &Arc::new(AtomicBool::new(false)), |_| {}).unwrap();
+    assert_eq!(probe(&out, "stream=codec_name,width,height"), "vp9,1280,720");
+}
+
+/// On Windows the app's ffmpeg can't decode H.264 or AAC, so this goes through Media
+/// Foundation; elsewhere a full ffmpeg reads it directly. Either way: VP9 and Opus.
+#[test]
+fn h264_with_aac_becomes_vp9_and_opus_in_step() {
+    if !have_ffmpeg() {
+        return;
+    }
+    let d = temp("h264");
+    let src = d.join("scene.mp4");
+    make(&src, &["-f", "lavfi", "-i", "testsrc2=size=640x360:rate=30:duration=3", "-f", "lavfi", "-i", "sine=duration=3", "-c:v", "libx264", "-c:a", "aac", "-shortest"]);
+    let out = d.join("scene.webm");
+    let mut seen = vec![];
+    let note = ffmpeg::compress(Kind::Video, &src, &out, &settings(), &ffmpeg::inspect(&src), &Arc::new(AtomicBool::new(false)), |p| seen.push(p)).unwrap();
+    assert!(note.is_none(), "{note:?}");
+    assert_eq!(probe(&out, "stream=codec_name"), "vp9\nopus");
+    // 90 pictures at 30 a second, and sound just as long.
+    let times = |stream: &str| -> Vec<f64> {
+        let o = tool("ffprobe").args(["-v", "error", "-select_streams", stream, "-show_entries", "packet=pts_time", "-of", "csv=p=0"]).arg(&out).output().unwrap();
+        String::from_utf8_lossy(&o.stdout).lines().filter_map(|l| l.trim().parse().ok()).collect()
+    };
+    let (video, sound) = (times("v"), times("a"));
+    assert_eq!(video.len(), 90);
+    let end = sound.iter().cloned().fold(0.0, f64::max);
+    assert!((end - 3.0).abs() < 0.1, "sound ends at {end}");
+    assert!(seen.iter().any(|p| *p > 0.5), "progress was reported: {seen:?}");
+}
+
+#[test]
+fn a_phone_video_turned_on_its_side_comes_out_upright() {
+    if !have_ffmpeg() {
+        return;
+    }
+    let d = temp("rotated");
+    let flat = d.join("flat.mp4");
+    make(&flat, &["-f", "lavfi", "-i", "testsrc2=size=640x360:rate=24:duration=1", "-c:v", "libx264"]);
+    let src = d.join("phone.mp4");
+    make(&src, &["-display_rotation", "90", "-i", flat.to_str().unwrap(), "-c", "copy"]);
+    let out = d.join("phone.webm");
+    ffmpeg::compress(Kind::Video, &src, &out, &settings(), &ffmpeg::inspect(&src), &Arc::new(AtomicBool::new(false)), |_| {}).unwrap();
+    assert_eq!(probe(&out, "stream=width,height"), "360,640");
 }
 
 #[test]
@@ -117,7 +167,7 @@ fn audio_file_without_sound_says_so() {
     let d = temp("silent");
     let src = d.join("silent.mp4");
     make(&src, &["-f", "lavfi", "-i", "testsrc2=size=64x64:duration=1", "-c:v", "libx264"]);
-    let err = ffmpeg::run(Kind::Audio, &src, &d.join("x.ogg"), &settings(), &ffmpeg::inspect(&src), &Arc::new(AtomicBool::new(false)), |_| {}).unwrap_err();
+    let err = ffmpeg::compress(Kind::Audio, &src, &d.join("x.ogg"), &settings(), &ffmpeg::inspect(&src), &Arc::new(AtomicBool::new(false)), |_| {}).unwrap_err();
     assert!(err.starts_with("This file has no sound in it."), "{err}");
 }
 
@@ -255,7 +305,7 @@ fn low_bitrate_sound_stays_low() {
     make(&src, &["-f", "lavfi", "-i", "testsrc2=size=160x90:duration=2", "-f", "lavfi", "-i", "sine=duration=2", "-c:v", "libx264", "-c:a", "aac", "-b:a", "48k", "-shortest"]);
     let info = ffmpeg::inspect(&src);
     assert!(info.audio_kbps().is_some_and(|k| k <= 60), "{info:?}");
-    let a = ffmpeg::args(Kind::Video, &src, &d.join("o.mp4"), &settings(), info.audio_kbps());
+    let a = ffmpeg::args(Kind::Video, &src, &ffmpeg::Sources::default(), &d.join("o.webm"), &settings(), &info);
     let at = a.iter().position(|x| x == "-b:a").unwrap();
     assert!(a[at + 1].trim_end_matches('k').parse::<u32>().unwrap() <= 60, "{a:?}");
 }
@@ -301,7 +351,8 @@ fn wide_gamut_colours_keep_their_profile() {
 
 #[test]
 fn the_frame_rate_cap_is_only_asked_for_when_chosen() {
-    let cap = |fps| ffmpeg::args(Kind::Video, Path::new("a.mp4"), Path::new("b.mp4"), &Settings { video_max_fps: fps, ..settings() }, None);
+    let info = ffmpeg::InputInfo::default();
+    let cap = |fps| ffmpeg::args(Kind::Video, Path::new("a.mp4"), &ffmpeg::Sources::default(), Path::new("b.webm"), &Settings { video_max_fps: fps, ..settings() }, &info);
     assert!(cap(30).windows(2).any(|w| w[0] == "-fpsmax" && w[1] == "30"));
     assert!(!cap(0).iter().any(|a| a == "-fpsmax"));
 }

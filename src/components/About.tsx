@@ -7,8 +7,8 @@ import white from '../assets/wordmark-white.svg';
 const REPO = 'https://github.com/MrKrysion/Sastra-Compressor';
 
 const CREDITS: [string, string, string][] = [
-  ['FFmpeg', 'GNU GPL 2 or later', 'https://ffmpeg.org'],
-  ['x264', 'GNU GPL 2 or later', 'https://www.videolan.org/developers/x264.html'],
+  ['FFmpeg', 'GNU LGPL 2.1 or later', 'https://ffmpeg.org'],
+  ['libvpx', 'BSD 3-clause', 'https://www.webmproject.org'],
   ['Opus', 'BSD', 'https://opus-codec.org'],
   ['dav1d', 'BSD', 'https://code.videolan.org/videolan/dav1d'],
   ['libwebp', 'BSD 3-clause', 'https://chromium.googlesource.com/webm/libwebp'],
@@ -41,7 +41,7 @@ export function About({ onClose }: { onClose(): void }) {
           </div>
           <div className="about-small">
             <p>
-              The bundled FFmpeg is free software under the GNU GPL. Its source code and licences come with every{' '}
+              The bundled FFmpeg is free software under the GNU LGPL. Its source code and licences come with every{' '}
               <a href={REPO + '/releases'} onClick={(e) => { e.preventDefault(); open(REPO + '/releases'); }}>release</a>.
             </p>
             <p>© 2026 Ken “Krysion” Nisaka</p>

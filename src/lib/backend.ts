@@ -173,7 +173,7 @@ function mockBackend(): Backend {
       unsupported: ['notes.txt'],
     }),
     plan: async (jobs, s) => {
-      const ext = { image: 'webp', audio: 'ogg', video: 'mp4' } as const;
+      const ext = { image: 'webp', audio: 'ogg', video: 'webm' } as const;
       return jobs.map((j) => {
         const dir = j.path.slice(0, j.path.lastIndexOf('/'));
         const stem = j.path.slice(dir.length + 1).replace(/\.[^.]+$/, '');
@@ -196,7 +196,7 @@ function mockBackend(): Backend {
                 ? { state: 'failed', id: j.id, error: "Sastra Compressor can't read this file's format.\nInvalid data found when processing input" }
                 : {
                     state: 'done', id: j.id, outPath: j.path.replace(/\.\w+$/, '.out'), outSize: Math.round(samples[i % samples.length][2] * ratio[j.kind]), kept: false,
-                    note: j.rel.endsWith('.gif') ? { text: 'Stays animated', warn: false } : j.rel.endsWith('.mov') ? { text: 'Transparency removed: MP4 can\'t keep it', warn: true } : null,
+                    note: j.rel.endsWith('.gif') ? { text: 'Stays animated', warn: false } : j.rel.endsWith('.mov') ? { text: 'Transparency removed', warn: true } : null,
                   }));
           }, at + s * 120));
         }

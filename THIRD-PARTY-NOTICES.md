@@ -4,8 +4,8 @@ Sastra™ Compressor is © 2026 Ken “Krysion” Nisaka and released under the 
 
 ## Shipped as a separate program
 
-**FFmpeg** (https://ffmpeg.org), built with **x264** (https://www.videolan.org/developers/x264.html), **Opus** (https://opus-codec.org), and **dav1d** (https://code.videolan.org/videolan/dav1d).
-`ffmpeg.exe` is licensed under the GNU General Public License, version 2 or later, because it includes x264. Opus and dav1d are under BSD licences. The full licence texts are in the `licences` folder next to the app, and `BUILD.txt` there gives the exact versions and build settings. The complete source code is attached to every release as `ffmpeg-source-code.zip`, and the build recipe is in the `ffmpeg` folder of this repository.
+**FFmpeg** (https://ffmpeg.org), built with **libvpx** (https://www.webmproject.org), **Opus** (https://opus-codec.org), and **dav1d** (https://code.videolan.org/videolan/dav1d).
+`ffmpeg.exe` is licensed under the GNU Lesser General Public License, version 2.1 or later. libvpx, Opus, and dav1d are under BSD licences; libvpx also comes with Google's patent grant (`libvpx-PATENTS.txt`). The full licence texts are in the `licences` folder next to the app, and `BUILD.txt` there gives the exact versions and build settings. The complete source code is attached to every release as `ffmpeg-source-code.zip`, and the build recipe is in the `ffmpeg` folder of this repository.
 
 `ffmpeg.exe` is compiled with the mingw-w64 toolchain (https://www.mingw-w64.org). Parts of its runtime are linked in: the mingw-w64 runtime libraries, under permissive licences, and GCC's runtime libraries, under the GCC Runtime Library Exception.
 

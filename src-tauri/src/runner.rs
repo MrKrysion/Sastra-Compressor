@@ -1,5 +1,5 @@
 //! Works through the list: images and audio side by side (one per core),
-//! then videos one at a time (x264 already uses every core).
+//! then videos one at a time (the VP9 encoder already uses every core).
 //! Each file is written to a temporary name and renamed when it is done,
 //! so a cancelled or failed file never leaves half a file behind.
 
@@ -59,6 +59,7 @@ pub fn run(app: AppHandle, jobs: Vec<Job>, settings: Settings, cancel: Arc<Atomi
 
 /// Removes what a crashed or killed run left behind.
 pub fn sweep(journal: &Path) {
+    ffmpeg::sweep_sound();
     let Ok(list) = std::fs::read_to_string(journal) else { return };
     for line in list.lines().filter(|l| l.ends_with(PART_EXT)) {
         let _ = std::fs::remove_file(line);
@@ -127,7 +128,7 @@ fn one(job: &Job, output: &Path, s: &Settings, cancel: &Arc<AtomicBool>, emit: &
             plays_in_browsers = info.plays_in_browsers(kind, &extension);
             // ffmpeg reports often; pass on at most ten updates a second.
             let mut last = Instant::now() - Duration::from_secs(1);
-            ffmpeg::run(kind, input, &part, s, &info, cancel, |p| {
+            ffmpeg::compress(kind, input, &part, s, &info, cancel, |p| {
                 if last.elapsed() >= Duration::from_millis(100) {
                     last = Instant::now();
                     emit(Update::Running { id: id.clone(), progress: p });
